@@ -37,8 +37,11 @@ export default function Home() {
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [result, setResult] = useState<BookResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState("English");
 
-  const handleSubmit = async (topic: string, ageGroup: string, language: string) => {
+  const handleSubmit = async (topic: string, ageGroup: string, lang: string) => {
+    setLanguage(lang);
+    const language = lang;
     setState("loading");
     setError(null);
     setResult(null);
@@ -93,6 +96,7 @@ export default function Home() {
             choiceA={result.choiceA}
             choiceB={result.choiceB}
             facts={result.facts}
+            language={language}
             onReset={handleReset}
           />
         ) : (

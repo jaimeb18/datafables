@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { getTranslations } from "@/lib/translations";
 
 interface StoryFormProps {
   onSubmit: (topic: string, ageGroup: string, language: string) => void;
   loading: boolean;
 }
-
-const AGE_GROUPS = [
-  { id: "5-7", label: "Little Reader", emoji: "🌱", desc: "Ages 5–7" },
-  { id: "8-10", label: "Explorer", emoji: "🔭", desc: "Ages 8–10" },
-  { id: "11-13", label: "Adventurer", emoji: "⚡", desc: "Ages 11–13" },
-];
 
 const LANGUAGES = [
   { value: "English", flag: "🇬🇧" },
@@ -28,6 +23,13 @@ const LANGUAGES = [
 
 export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
   const [language, setLanguage] = useState("English");
+  const t = getTranslations(language);
+
+  const AGE_GROUPS = [
+    { id: "5-7", label: t.littleReader, emoji: "🌱", desc: t.littleReaderAge },
+    { id: "8-10", label: t.explorer, emoji: "🔭", desc: t.explorerAge },
+    { id: "11-13", label: t.adventurer, emoji: "⚡", desc: t.adventurerAge },
+  ];
 
   return (
     <form
@@ -43,14 +45,14 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
       {/* Topic input */}
       <div className="flex flex-col gap-2">
         <label htmlFor="topic" className="text-lg font-bold text-amber-800">
-          What should your story be about?
+          {t.topicLabel}
         </label>
         <input
           id="topic"
           name="topic"
           type="text"
           required
-          placeholder="e.g. dolphins, ancient Egypt, volcanoes..."
+          placeholder={t.topicPlaceholder}
           disabled={loading}
           className="w-full rounded-2xl border-2 border-amber-200 bg-white px-5 py-4 text-base text-gray-800 placeholder-gray-400 shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200 disabled:opacity-60 transition"
         />
@@ -58,7 +60,7 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
 
       {/* Language selector */}
       <div className="flex flex-col gap-3">
-        <span className="text-lg font-bold text-amber-800">🌍 Story Language</span>
+        <span className="text-lg font-bold text-amber-800">{t.languageLabel}</span>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {LANGUAGES.map((lang) => (
             <button
@@ -81,7 +83,7 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
 
       {/* Age group selector */}
       <div className="flex flex-col gap-3">
-        <span className="text-lg font-bold text-amber-800">Reading level</span>
+        <span className="text-lg font-bold text-amber-800">{t.readingLevel}</span>
         <div className="grid grid-cols-3 gap-3">
           {AGE_GROUPS.map((group) => (
             <label key={group.id} className="cursor-pointer group">
@@ -112,10 +114,10 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
         {loading ? (
           <span className="flex items-center justify-center gap-3">
             <span className="inline-block animate-bounce">📖</span>
-            <span>Creating your story…</span>
+            <span>{t.creating}</span>
           </span>
         ) : (
-          "✨ Create My Story"
+          t.createStory
         )}
       </button>
     </form>

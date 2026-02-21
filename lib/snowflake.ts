@@ -1,6 +1,115 @@
-// Snowflake integration with mock fallback.
-// When SNOWFLAKE_ACCOUNT env vars are present, real queries run.
-// Otherwise, a curated educational fact bank is used.
+// Snowflake fact retrieval — queries the FACTS table directly.
+// No AI extraction. All facts are verified and loaded from snowflake_facts.sql.
+// Falls back to the mock bank when Snowflake credentials are absent.
+
+import snowflake from "snowflake-sdk";
+
+const hasSnowflake = !!(
+  process.env.SNOWFLAKE_ACCOUNT &&
+  process.env.SNOWFLAKE_USERNAME &&
+  process.env.SNOWFLAKE_PASSWORD
+);
+
+// ─── Connection ───────────────────────────────────────────────────────────────
+
+function createConn(): Promise<snowflake.Connection> {
+  const conn = snowflake.createConnection({
+    account: process.env.SNOWFLAKE_ACCOUNT!,
+    username: process.env.SNOWFLAKE_USERNAME!,
+    password: process.env.SNOWFLAKE_PASSWORD!,
+    database: process.env.SNOWFLAKE_DATABASE ?? "DATAFABLES",
+    warehouse: process.env.SNOWFLAKE_WAREHOUSE ?? "COMPUTE_WH",
+    schema: "PUBLIC",
+  });
+  return new Promise((resolve, reject) =>
+    conn.connect((err, c) => (err ? reject(err) : resolve(c)))
+  );
+}
+
+function query<T>(
+  conn: snowflake.Connection,
+  sqlText: string,
+  binds: (string | number)[] = []
+): Promise<T[]> {
+  return new Promise((resolve, reject) =>
+    conn.execute({
+      sqlText,
+      binds: binds as snowflake.Bind[],
+      complete: (err, _stmt, rows) =>
+        err ? reject(err) : resolve((rows ?? []) as T[]),
+    })
+  );
+}
+
+function destroyConn(conn: snowflake.Connection) {
+  conn.destroy((err) => {
+    if (err) console.error("Snowflake disconnect error:", err);
+  });
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+export async function getFactsForTopic(
+  topic: string,
+  ageGroup: string = "all"
+): Promise<string[]> {
+  if (!hasSnowflake) return getMockFacts(topic);
+
+  let conn: snowflake.Connection | null = null;
+  try {
+    conn = await createConn();
+
+    // Query facts that match the topic and are suitable for the age group.
+    // AGE_GROUP = 'all' means the fact is suitable for every age.
+    const rows = await query<{ FACT: string }>(
+      conn,
+      `SELECT FACT
+       FROM STORY_FACTS
+       WHERE LOWER(TOPIC) = LOWER(?)
+         AND (AGE_GROUP = ? OR AGE_GROUP = 'all')
+       ORDER BY RANDOM()
+       LIMIT 4`,
+      [topic, ageGroup]
+    );
+
+    // If no exact match, try a broader keyword search
+    if (rows.length === 0) {
+      const fuzzyRows = await query<{ FACT: string }>(
+        conn,
+        `SELECT FACT
+         FROM STORY_FACTS
+         WHERE LOWER(TOPIC) LIKE LOWER(?)
+           AND (AGE_GROUP = ? OR AGE_GROUP = 'all')
+         ORDER BY RANDOM()
+         LIMIT 4`,
+        [`%${topic}%`, ageGroup]
+      );
+      if (fuzzyRows.length > 0) return fuzzyRows.map((r) => r.FACT);
+    }
+
+    if (rows.length > 0) return rows.map((r) => r.FACT);
+
+    // No match in database — fall back to mock
+    return getMockFacts(topic);
+  } catch (err) {
+    console.error("Snowflake query error — falling back to mock:", err);
+    return getMockFacts(topic);
+  } finally {
+    if (conn) destroyConn(conn);
+  }
+}
+
+// ─── Mock fallback ────────────────────────────────────────────────────────────
+
+function getMockFacts(topic: string): string[] {
+  const lower = topic.toLowerCase();
+  for (const [key, facts] of Object.entries(MOCK_FACTS)) {
+    if (lower === key || lower.includes(key) || key.includes(lower)) {
+      return facts.sort(() => Math.random() - 0.5).slice(0, 4);
+    }
+  }
+  return DEFAULT_FACTS.sort(() => Math.random() - 0.5).slice(0, 4);
+}
 
 const MOCK_FACTS: Record<string, string[]> = {
   dolphins: [
@@ -63,12 +172,6 @@ const MOCK_FACTS: Record<string, string[]> = {
     "Ancient Egyptians had over 2,000 gods and goddesses.",
     "Cats were sacred in ancient Egypt and killing one was a serious crime.",
   ],
-  "ancient egypt": [
-    "Ancient Egyptians invented one of the first writing systems, called hieroglyphics.",
-    "The Great Pyramid of Giza was the tallest human-made structure for over 3,800 years.",
-    "Ancient Egyptians had over 2,000 gods and goddesses.",
-    "Cats were sacred in ancient Egypt and killing one was a serious crime.",
-  ],
   science: [
     "Humans share about 60% of their DNA with bananas.",
     "The human brain generates about 20 watts of power — enough to power a dim light bulb.",
@@ -95,34 +198,9 @@ const MOCK_FACTS: Record<string, string[]> = {
   ],
 };
 
-function findMatchingFacts(topic: string): string[] {
-  const lower = topic.toLowerCase();
-
-  // Try exact match first
-  if (MOCK_FACTS[lower]) return MOCK_FACTS[lower];
-
-  // Try partial keyword match
-  for (const key of Object.keys(MOCK_FACTS)) {
-    if (lower.includes(key) || key.includes(lower)) {
-      return MOCK_FACTS[key];
-    }
-  }
-
-  // Default: return a mix of general science + nature facts
-  return [
-    "The human body has about 37 trillion cells.",
-    "Earth is the only planet in the solar system known to support life.",
-    "There are more stars in the universe than grains of sand on all of Earth's beaches.",
-    "Reading expands your vocabulary and helps build empathy for others.",
-  ];
-}
-
-export async function getFactsForTopic(topic: string): Promise<string[]> {
-  // Future: when Snowflake credentials are present, query real data here.
-  // const hasSnowflake = process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USERNAME;
-  // if (hasSnowflake) { ... }
-
-  const facts = findMatchingFacts(topic);
-  // Return a random selection of 3-4 facts
-  return facts.sort(() => Math.random() - 0.5).slice(0, 4);
-}
+const DEFAULT_FACTS = [
+  "The human body has about 37 trillion cells.",
+  "Earth is the only planet in the solar system known to support life.",
+  "There are more stars in the universe than grains of sand on all of Earth's beaches.",
+  "Reading expands your vocabulary and helps build empathy for others.",
+];

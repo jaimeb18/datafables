@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import AudioPlayer from "./AudioPlayer";
+import { getTranslations } from "@/lib/translations";
 
 interface VocabWord {
   word: string;
@@ -30,10 +31,20 @@ interface StoryDisplayProps {
   choiceA: BranchChoice;
   choiceB: BranchChoice;
   facts: string[];
+  language: string;
   onReset: () => void;
 }
 
-function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => void }) {
+// Apple-style frosted glass vocab sheet — slides up from the bottom
+function DictionaryModal({
+  vocab,
+  onClose,
+  gotIt,
+}: {
+  vocab: VocabWord;
+  onClose: () => void;
+  gotIt: string;
+}) {
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<{ correct: boolean; feedback: string } | null>(null);
   const [checking, setChecking] = useState(false);
@@ -86,51 +97,97 @@ function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(6px)" }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          animation: "appleSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)",
+          background: "#EEF4FF",
+          boxShadow: "0 -8px 32px rgba(99,149,255,0.12), 0 24px 48px rgba(0,0,0,0.13)",
+          border: "1.5px solid #D6E4FF",
+        }}
+        className="w-full max-w-lg mx-3 mb-4 rounded-[2rem] overflow-hidden"
       >
-        <div className="px-6 pt-6 pb-4">
+        {/* Blue top accent bar */}
+        <div style={{ background: "linear-gradient(90deg, #5B9EFF 0%, #7BB8FF 100%)", height: "5px" }} />
+
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-9 h-1 rounded-full" style={{ background: "rgba(91,158,255,0.25)" }} />
+        </div>
+
+        {/* Content */}
+        <div className="px-6 pt-3 pb-7 flex flex-col gap-4">
+
+          {/* Word + phonetic */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h2 className="text-3xl font-normal text-gray-900 break-words">{vocab.word}</h2>
+              <h2
+                className="text-4xl font-bold break-words tracking-tight"
+                style={{ color: "#1a2e5a", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}
+              >
+                {vocab.word}
+              </h2>
               {vocab.phonetic && (
-                <p className="text-base text-[#1a73e8] mt-1">{vocab.phonetic}</p>
+                <p className="text-sm mt-1 font-medium" style={{ color: "#5B9EFF" }}>
+                  {vocab.phonetic}
+                </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 transition text-lg mt-0.5"
-            >&#x2715;</button>
+              style={{ background: "#D6E4FF", color: "#5B9EFF" }}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold mt-1 transition hover:brightness-95 active:scale-90"
+            >
+              ✕
+            </button>
           </div>
-        </div>
-        <div className="h-px bg-gray-200 mx-6" />
-        <div className="px-6 py-4 flex flex-col gap-3">
+
+          {/* Divider */}
+          <div style={{ height: "1.5px", background: "#D6E4FF", borderRadius: "2px" }} />
+
+          {/* Part of speech */}
           {vocab.partOfSpeech && (
-            <p className="text-sm text-gray-500 italic">{vocab.partOfSpeech}</p>
+            <span
+              className="self-start text-xs font-bold px-3 py-1 rounded-full"
+              style={{ background: "#D6E4FF", color: "#3a7bd5" }}
+            >
+              {vocab.partOfSpeech}
+            </span>
           )}
-          <div className="flex gap-3">
-            <span className="text-[#1a73e8] font-medium text-sm mt-0.5 flex-shrink-0">1</span>
-            <p className="text-gray-800 text-base leading-snug">{vocab.definition}</p>
-          </div>
+
+          {/* Definition */}
+          <p
+            className="text-base leading-relaxed font-medium"
+            style={{ color: "#1a2e5a", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}
+          >
+            {vocab.definition}
+          </p>
+
+          {/* Example */}
           {vocab.example && (
-            <p className="text-gray-500 text-sm italic ml-6 leading-snug">&ldquo;{vocab.example}&rdquo;</p>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "#4a6fa5", fontStyle: "italic", paddingLeft: "12px", borderLeft: "3px solid #7BB8FF" }}
+            >
+              &ldquo;{vocab.example}&rdquo;
+            </p>
           )}
 
           {/* Pronunciation practice */}
-          <div className="mt-1 rounded-xl bg-gray-50 border border-gray-100 p-3 flex flex-col gap-2">
-            <p className="text-xs text-gray-500 font-medium">Practice saying it:</p>
+          <div className="rounded-xl p-3 flex flex-col gap-2" style={{ background: "#E0ECFF", border: "1px solid #C8DBFF" }}>
+            <p className="text-xs font-medium" style={{ color: "#3a7bd5" }}>Practice saying it:</p>
             <button
               onClick={recording ? stopRecording : startRecording}
               disabled={checking}
-              className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium transition active:scale-95 ${
-                recording
-                  ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
-                  : "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              style={recording
+                ? { background: "#ef4444" }
+                : { background: "linear-gradient(135deg, #5B9EFF 0%, #3a7bd5 100%)" }
+              }
+              className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium text-white transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${recording ? "animate-pulse" : ""}`}
             >
               {checking ? "Checking..." : recording ? "⏹ Stop Recording" : "🎤 Record"}
             </button>
@@ -142,14 +199,28 @@ function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => 
               </div>
             )}
           </div>
-        </div>
-        <div className="px-6 pb-5 pt-1">
+
+          {/* Button */}
           <button
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-[#1a73e8] text-white text-sm font-medium hover:bg-[#1557b0] transition active:scale-95"
-          >Got it!</button>
+            style={{
+              background: "linear-gradient(135deg, #5B9EFF 0%, #3a7bd5 100%)",
+              boxShadow: "0 4px 14px rgba(91,158,255,0.35)",
+              fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+            }}
+            className="mt-1 w-full py-3.5 rounded-2xl text-white font-bold text-base transition active:scale-95 hover:brightness-105"
+          >
+            {gotIt}
+          </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes appleSlideUp {
+          from { transform: translateY(110%); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -271,6 +342,7 @@ export default function StoryDisplay({
   choiceA,
   choiceB,
   facts,
+  language,
   onReset,
 }: StoryDisplayProps) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -278,6 +350,7 @@ export default function StoryDisplay({
   const [showChoiceScreen, setShowChoiceScreen] = useState(false);
   const [showAudio, setShowAudio] = useState(false);
   const [activeVocab, setActiveVocab] = useState<VocabWord | null>(null);
+  const t = getTranslations(language);
 
   // Always build the full 10-page array so all dots render.
   // Before a choice is made, use choiceA pages as placeholders for the dot count.
@@ -330,7 +403,9 @@ export default function StoryDisplay({
 
   return (
     <div className="w-full max-w-6xl flex flex-col gap-6">
-      {activeVocab && <DictionaryModal vocab={activeVocab} onClose={() => setActiveVocab(null)} />}
+      {activeVocab && (
+        <DictionaryModal vocab={activeVocab} onClose={() => setActiveVocab(null)} gotIt={t.gotIt} />
+      )}
 
       {/* Title */}
       <h1
@@ -455,7 +530,7 @@ export default function StoryDisplay({
                       : "border-stone-300 bg-white/60 text-stone-500 hover:bg-white"
                   }`}
                 >
-                  🎧 {showAudio ? "Hide" : "Listen"}
+                  🎧 {showAudio ? t.hide : t.listen}
                 </button>
 
                 {/* Chapter rule */}
@@ -465,7 +540,7 @@ export default function StoryDisplay({
                     className="text-stone-400 text-[10px] tracking-[0.2em] uppercase select-none"
                     style={{ fontFamily: "Georgia, serif" }}
                   >
-                    Page {currentPage + 1} of {activePages.length}
+                    {t.pageOf(currentPage + 1, activePages.length)}
                   </span>
                   <div className="h-px flex-1 bg-stone-300/70" />
                 </div>
@@ -480,7 +555,7 @@ export default function StoryDisplay({
 
                 {page.vocabulary && page.vocabulary.length > 0 && (
                   <p className="text-xs text-[#1a73e8] opacity-60" style={{ fontFamily: "Georgia, serif" }}>
-                    Tap the <span className="underline font-semibold">blue words</span> to look them up.
+                    {t.tapBlueWords}
                   </p>
                 )}
 
@@ -521,7 +596,7 @@ export default function StoryDisplay({
       {/* Did You Know? — last page */}
       {isLast && facts.length > 0 && (
         <div className="rounded-3xl bg-sky-50 border border-sky-200 p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-extrabold text-sky-800">💡 Did You Know?</h2>
+          <h2 className="text-lg font-extrabold text-sky-800">{t.didYouKnow}</h2>
           <ul className="flex flex-col gap-3">
             {facts.map((fact, i) => (
               <li key={i} className="flex items-start gap-3">
@@ -548,7 +623,7 @@ export default function StoryDisplay({
             onClick={onReset}
             className="w-full rounded-2xl border-2 border-amber-300 bg-white py-4 text-base font-bold text-amber-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
           >
-            📖 Create Another Story
+            {t.createAnother}
           </button>
         </div>
       )}

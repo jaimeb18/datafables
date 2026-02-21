@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing topic or ageGroup" }, { status: 400 });
     }
 
-    const facts = await getFactsForTopic(topic);
+    const facts = await getFactsForTopic(topic, ageGroup);
     const story = await generateBranchingStory(topic, ageGroup, facts, language);
 
     // Collect all pages that need images
