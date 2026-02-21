@@ -2,19 +2,39 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface AudioPlayerProps {
-  storyText: string;
+interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
 }
 
-export default function AudioPlayer({ storyText }: AudioPlayerProps) {
+interface HighlightInfo {
+  word: string;
+  charStart: number;
+}
+
+interface AudioPlayerProps {
+  storyText: string;
+  onWordChange?: (info: HighlightInfo | null) => void;
+}
+
+export default function AudioPlayer({ storyText, onWordChange }: AudioPlayerProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number>(0);
+  // Use refs so RAF callback always sees latest values without re-attaching listeners
+  const wordsRef = useRef<WordTiming[]>([]);
+  const onWordChangeRef = useRef(onWordChange);
+
+  useEffect(() => { onWordChangeRef.current = onWordChange; }, [onWordChange]);
+
+  // Fetch audio + word timings
   useEffect(() => {
     let blobUrl: string;
 
@@ -30,8 +50,11 @@ export default function AudioPlayer({ storyText }: AudioPlayerProps) {
 
         if (!res.ok) throw new Error("Failed to load audio");
 
-        const blob = await res.blob();
+        const data = await res.json();
+        const byteArray = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
+        const blob = new Blob([byteArray], { type: "audio/mpeg" });
         blobUrl = URL.createObjectURL(blob);
+        wordsRef.current = data.words ?? [];
         setAudioUrl(blobUrl);
       } catch (err) {
         setError("Could not load narration.");
@@ -42,32 +65,71 @@ export default function AudioPlayer({ storyText }: AudioPlayerProps) {
     };
 
     fetchAudio();
-
     return () => {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, [storyText]);
 
+  // RAF-based polling for accurate word highlighting
+  const startRAF = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const tick = () => {
+      const t = audio.currentTime;
+      setProgress(t);
+
+      const words = wordsRef.current;
+      if (words.length > 0 && onWordChangeRef.current) {
+        // Find the last word whose start time is <= current time
+        let active: WordTiming | null = null;
+        for (const w of words) {
+          if (w.start <= t) active = w;
+          else break;
+        }
+        // Clear highlight if we've moved well past the word's end
+        if (active && t > active.end + 0.08) active = null;
+        onWordChangeRef.current(
+          active ? { word: active.word, charStart: active.charStart } : null
+        );
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const stopRAF = () => {
+    cancelAnimationFrame(rafRef.current);
+    onWordChangeRef.current?.(null);
+  };
+
+  // Wire up audio element events
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
     audio.src = audioUrl;
 
-    const onTimeUpdate = () => setProgress(audio.currentTime);
+    const onPlay = () => startRAF();
+    const onPause = () => stopRAF();
+    const onEnded = () => { setPlaying(false); stopRAF(); };
     const onDurationChange = () => setDuration(audio.duration);
-    const onEnded = () => setPlaying(false);
 
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("durationchange", onDurationChange);
 
     return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("durationchange", onDurationChange);
+      cancelAnimationFrame(rafRef.current);
     };
-  }, [audioUrl]);
+  }, [audioUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const togglePlay = () => {
     const audio = audioRef.current;
@@ -91,10 +153,6 @@ export default function AudioPlayer({ storyText }: AudioPlayerProps) {
 
   return (
     <div className="w-full rounded-2xl bg-sky-50 border border-sky-200 p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <span className="text-sky-700 font-bold text-sm">🎧 Listen to your story</span>
-      </div>
-
       {loading ? (
         <div className="flex items-center gap-2 text-sky-500 text-sm">
           <span className="animate-pulse">🎵</span>
@@ -112,7 +170,6 @@ export default function AudioPlayer({ storyText }: AudioPlayerProps) {
               {playing ? "⏸" : "▶"}
             </button>
 
-            {/* Progress bar */}
             <div className="flex-1 flex flex-col gap-1">
               <input
                 type="range"

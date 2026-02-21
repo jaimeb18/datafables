@@ -9,14 +9,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing text" }, { status: 400 });
     }
 
-    const audioBuffer = await generateSpeech(text);
+    const { audioBuffer, words } = await generateSpeech(text);
 
-    return new NextResponse(audioBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": audioBuffer.length.toString(),
-      },
+    return NextResponse.json({
+      audioBase64: audioBuffer.toString("base64"),
+      words,
     });
   } catch (err) {
     console.error("Audio error:", err);

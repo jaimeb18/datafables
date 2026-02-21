@@ -229,38 +229,94 @@ function PageText({
   text,
   vocabulary,
   onWordClick,
+  highlightedWord,
 }: {
   text: string;
   vocabulary: VocabWord[];
   onWordClick: (vocab: VocabWord) => void;
+  highlightedWord?: { word: string; charStart: number } | null;
 }) {
-  if (!vocabulary || vocabulary.length === 0) {
-    return (
-      <p className="text-lg sm:text-xl leading-relaxed text-stone-800" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-        {text}
-      </p>
-    );
+  // Build a list of character ranges to highlight, sorted by start position.
+  type Range = { start: number; end: number; vocab?: VocabWord; spoken?: boolean };
+  const ranges: Range[] = [];
+
+  // Vocab word ranges — find every occurrence in the text
+  for (const v of vocabulary) {
+    const escaped = v.word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(escaped, "gi");
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      ranges.push({ start: m.index, end: m.index + m[0].length, vocab: v });
+    }
   }
 
-  const escaped = vocabulary.map((v) => v.word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
-  const parts = text.split(regex);
+  // Spoken word range — strip punctuation then find the occurrence
+  // closest to charStart so we highlight the right "the", not all of them.
+  if (highlightedWord) {
+    const clean = highlightedWord.word.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "");
+    if (clean.length > 0) {
+      const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(escaped, "gi");
+      let m;
+      let best: RegExpExecArray | null = null;
+      let bestDist = Infinity;
+      while ((m = re.exec(text)) !== null) {
+        const dist = Math.abs(m.index - highlightedWord.charStart);
+        if (dist < bestDist) { bestDist = dist; best = m; }
+      }
+      if (best && bestDist < 80) {
+        // If this overlaps an existing vocab range, mark that range as spoken
+        // instead of adding a duplicate — so the vocab word gets both styles.
+        const overlap = ranges.find(
+          (r) => r.vocab && r.start <= best!.index && best!.index < r.end
+        );
+        if (overlap) {
+          overlap.spoken = true;
+        } else {
+          ranges.push({ start: best.index, end: best.index + best[0].length, spoken: true });
+        }
+      }
+    }
+  }
+
+  // Sort by start; on overlap prefer vocab (it came first)
+  ranges.sort((a, b) => a.start - b.start);
+
+  // Render text as segments between ranges
+  const segments: React.ReactNode[] = [];
+  let pos = 0;
+  for (const r of ranges) {
+    if (r.start < pos) continue; // skip overlapping ranges
+    if (r.start > pos) {
+      segments.push(<span key={`t${pos}`}>{text.slice(pos, r.start)}</span>);
+    }
+    const content = text.slice(r.start, r.end);
+    if (r.vocab) {
+      segments.push(
+        <span
+          key={`v${r.start}`}
+          className="underline decoration-[#1a73e8] decoration-[2px] underline-offset-2 cursor-pointer font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors"
+          style={r.spoken ? { background: "rgba(255, 220, 50, 0.55)", borderRadius: "3px", padding: "0 2px" } : undefined}
+          onClick={() => onWordClick(r.vocab!)}
+        >{content}</span>
+      );
+    } else if (r.spoken) {
+      segments.push(
+        <mark
+          key={`s${r.start}`}
+          style={{ background: "rgba(255, 220, 50, 0.55)", borderRadius: "3px", padding: "0 2px", color: "inherit" }}
+        >{content}</mark>
+      );
+    }
+    pos = r.end;
+  }
+  if (pos < text.length) {
+    segments.push(<span key={`t${pos}`}>{text.slice(pos)}</span>);
+  }
 
   return (
     <p className="text-lg sm:text-xl leading-relaxed text-stone-800" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-      {parts.map((part, i) => {
-        const vocabEntry = vocabulary.find((v) => v.word.toLowerCase() === part.toLowerCase());
-        if (vocabEntry) {
-          return (
-            <span
-              key={i}
-              className="underline decoration-[#1a73e8] decoration-[2px] underline-offset-2 cursor-pointer font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors"
-              onClick={() => onWordClick(vocabEntry)}
-            >{part}</span>
-          );
-        }
-        return <span key={i}>{part}</span>;
-      })}
+      {segments}
     </p>
   );
 }
@@ -350,6 +406,7 @@ export default function StoryDisplay({
   const [showChoiceScreen, setShowChoiceScreen] = useState(false);
   const [showAudio, setShowAudio] = useState(false);
   const [activeVocab, setActiveVocab] = useState<VocabWord | null>(null);
+  const [highlightedWord, setHighlightedWord] = useState<{ word: string; charStart: number } | null>(null);
   const t = getTranslations(language);
 
   // Always build the full 10-page array so all dots render.
@@ -370,6 +427,7 @@ export default function StoryDisplay({
   useEffect(() => {
     setShowAudio(false);
     setActiveVocab(null);
+    setHighlightedWord(null);
   }, [currentPage]);
 
   const goNext = () => {
@@ -530,7 +588,7 @@ export default function StoryDisplay({
                       : "border-stone-300 bg-white/60 text-stone-500 hover:bg-white"
                   }`}
                 >
-                  🎧 {showAudio ? t.hide : t.listen}
+                  {showAudio ? t.hide : t.listen}
                 </button>
 
                 {/* Chapter rule */}
@@ -551,6 +609,7 @@ export default function StoryDisplay({
                   text={page.text}
                   vocabulary={page.vocabulary ?? []}
                   onWordClick={setActiveVocab}
+                  highlightedWord={highlightedWord}
                 />
 
                 {page.vocabulary && page.vocabulary.length > 0 && (
@@ -591,7 +650,13 @@ export default function StoryDisplay({
       </div>
 
       {/* Audio player */}
-      {showAudio && !showChoiceScreen && <AudioPlayer key={currentPage} storyText={page.text} />}
+      {showAudio && !showChoiceScreen && (
+        <AudioPlayer
+          key={currentPage}
+          storyText={page.text}
+          onWordChange={setHighlightedWord}
+        />
+      )}
 
       {/* Did You Know? — last page */}
       {isLast && facts.length > 0 && (

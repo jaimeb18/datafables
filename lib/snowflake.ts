@@ -59,37 +59,49 @@ export async function getFactsForTopic(
   try {
     conn = await createConn();
 
-    // Query facts that match the topic and are suitable for the age group.
-    // AGE_GROUP = 'all' means the fact is suitable for every age.
-    const rows = await query<{ FACT: string }>(
+    const ageFilter = `(AGE_GROUP = ? OR AGE_GROUP = 'all')`;
+
+    // 1. Exact topic match
+    const exact = await query<{ FACT: string }>(
       conn,
-      `SELECT FACT
-       FROM STORY_FACTS
-       WHERE LOWER(TOPIC) = LOWER(?)
-         AND (AGE_GROUP = ? OR AGE_GROUP = 'all')
-       ORDER BY RANDOM()
-       LIMIT 4`,
+      `SELECT FACT FROM STORY_FACTS
+       WHERE LOWER(TOPIC) = LOWER(?) AND ${ageFilter}
+       ORDER BY RANDOM() LIMIT 5`,
       [topic, ageGroup]
     );
+    if (exact.length > 0) return exact.map((r) => r.FACT);
 
-    // If no exact match, try a broader keyword search
-    if (rows.length === 0) {
-      const fuzzyRows = await query<{ FACT: string }>(
+    // 2. Full topic as substring ("solar system" matches stored topic "solar system")
+    const fuzzy = await query<{ FACT: string }>(
+      conn,
+      `SELECT FACT FROM STORY_FACTS
+       WHERE LOWER(TOPIC) LIKE ? AND ${ageFilter}
+       ORDER BY RANDOM() LIMIT 5`,
+      [`%${topic.toLowerCase()}%`, ageGroup]
+    );
+    if (fuzzy.length > 0) return fuzzy.map((r) => r.FACT);
+
+    // 3. Semantic category mapping — finds ALL relevant categories and blends facts from each.
+    //    e.g. "ocean animals" → ["ocean", "animals"] → returns a mix of both.
+    const categories = getBroadCategories(topic);
+    if (categories.length > 0) {
+      // Build: WHERE (TOPIC LIKE cat1 OR TOPIC LIKE cat2 ...) AND age_filter
+      const orClauses = categories.map(() => `LOWER(TOPIC) LIKE ?`).join(" OR ");
+      const binds: string[] = [
+        ...categories.map((c) => `%${c}%`),
+        ageGroup,
+      ];
+      const catRows = await query<{ FACT: string }>(
         conn,
-        `SELECT FACT
-         FROM STORY_FACTS
-         WHERE LOWER(TOPIC) LIKE LOWER(?)
-           AND (AGE_GROUP = ? OR AGE_GROUP = 'all')
-         ORDER BY RANDOM()
-         LIMIT 4`,
-        [`%${topic}%`, ageGroup]
+        `SELECT FACT FROM STORY_FACTS
+         WHERE (${orClauses}) AND ${ageFilter}
+         ORDER BY RANDOM() LIMIT 5`,
+        binds
       );
-      if (fuzzyRows.length > 0) return fuzzyRows.map((r) => r.FACT);
+      if (catRows.length > 0) return catRows.map((r) => r.FACT);
     }
 
-    if (rows.length > 0) return rows.map((r) => r.FACT);
-
-    // No match in database — fall back to mock
+    // 4. Nothing matched — fall back to mock
     return getMockFacts(topic);
   } catch (err) {
     console.error("Snowflake query error — falling back to mock:", err);
@@ -97,6 +109,38 @@ export async function getFactsForTopic(
   } finally {
     if (conn) destroyConn(conn);
   }
+}
+
+// Returns ALL broad categories that match the topic so facts can be blended.
+// e.g. "ocean animals" → ["ocean", "animals"]
+// e.g. "space robots"  → ["space", "computers"]
+function getBroadCategories(topic: string): string[] {
+  const t = topic.toLowerCase();
+  const map: [string[], string][] = [
+    [["animal", "creature", "wildlife", "mammal", "bird", "insect", "reptile", "bug", "pet", "lion", "cat", "dog", "bear", "wolf", "shark", "frog", "turtle", "deer", "fox"], "animals"],
+    [["space", "planet", "star", "galaxy", "universe", "cosmos", "astronaut", "nasa", "rocket", "moon", "mars", "orbit", "comet", "meteor", "asteroid"], "space"],
+    [["science", "chemistry", "biology", "physics", "experiment", "lab", "cell", "molecule", "element", "energy", "force"], "science"],
+    [["history", "ancient", "civilization", "empire", "war", "medieval", "viking", "pharaoh", "pyramid", "roman", "greek", "chinese", "castle", "knight"], "history"],
+    [["math", "number", "geometry", "algebra", "equation", "calculation", "fraction", "shape"], "math"],
+    [["ocean", "sea", "marine", "underwater", "coral", "wave", "beach", "tide", "reef", "whale", "fish", "dolphin", "shark", "jellyfish"], "ocean"],
+    [["weather", "climate", "storm", "rain", "snow", "thunder", "lightning", "tornado", "hurricane", "cloud"], "weather"],
+    [["plant", "tree", "flower", "garden", "forest", "jungle", "leaf", "seed", "root", "grass"], "plants"],
+    [["music", "song", "instrument", "melody", "rhythm", "dance", "sing", "band", "orchestra"], "music"],
+    [["sport", "game", "athletic", "competition", "olympic", "football", "baseball", "tennis", "run", "jump", "team"], "sports"],
+    [["technology", "computer", "robot", "machine", "digital", "internet", "code", "program", "ai", "device"], "computers"],
+    [["food", "eat", "cook", "recipe", "meal", "nutrition", "fruit", "vegetable", "bread", "pizza"], "food"],
+    [["dinosaur", "prehistoric", "fossil", "jurassic", "t-rex", "raptor"], "dinosaurs"],
+    [["volcano", "lava", "eruption", "magma", "earthquake", "geology", "rock", "mineral"], "volcanoes"],
+    [["geography", "country", "continent", "mountain", "river", "desert", "map", "world", "land", "island"], "geography"],
+    [["art", "painting", "drawing", "color", "artist", "museum", "sculpture", "design"], "art"],
+    [["myth", "legend", "god", "goddess", "hero", "norse", "dragon", "magic"], "mythology"],
+  ];
+
+  const matched: string[] = [];
+  for (const [keywords, category] of map) {
+    if (keywords.some((k) => t.includes(k))) matched.push(category);
+  }
+  return matched;
 }
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
