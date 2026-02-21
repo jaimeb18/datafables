@@ -2,6 +2,45 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+function cleanJSON(raw: string): unknown {
+  // Strip markdown code fences
+  let s = raw.trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+
+  // Find the start of the outermost JSON object
+  const start = s.indexOf("{");
+  if (start === -1) throw new Error("No JSON object found in response");
+
+  // Walk character-by-character to find the matching closing brace,
+  // correctly ignoring braces inside strings and escape sequences.
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let end = -1;
+
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (escape)         { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"')     { inString = !inString; continue; }
+    if (inString)       continue;
+    if (ch === "{")     depth++;
+    else if (ch === "}") { if (--depth === 0) { end = i; break; } }
+  }
+
+  if (end === -1) throw new Error("Unmatched braces in JSON response");
+
+  s = s.slice(start, end + 1);
+
+  // Remove trailing commas before } or ] (common Gemini quirk)
+  s = s.replace(/,(\s*[}\]])/g, "$1");
+
+  return JSON.parse(s);
+}
+
 export interface VocabWord {
   word: string;
   phonetic?: string;
@@ -90,9 +129,7 @@ Respond ONLY with valid JSON (no markdown, no extra text):
     contents: prompt,
   });
 
-  const text = (response.text ?? "").trim();
-  const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const parsed = cleanJSON(response.text ?? "") as { title: string; pages: StoryPage[] };
   return { title: parsed.title, pages: parsed.pages };
 }
 
@@ -174,11 +211,17 @@ Each branch (choiceA.pages and choiceB.pages) should have exactly (10 - branchPo
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
+    config: { maxOutputTokens: 8192 },
   });
 
-  const text = (response.text ?? "").trim();
-  const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const parsed = cleanJSON(response.text ?? "") as {
+    title: string;
+    branchPointIndex: number;
+    commonPages: StoryPage[];
+    branchPointPage: StoryPage;
+    choiceA: { label: string; pages: StoryPage[] };
+    choiceB: { label: string; pages: StoryPage[] };
+  };
 
   const bpi = parsed.branchPointIndex;
   if (bpi < 3 || bpi > 7) {
@@ -259,9 +302,7 @@ Respond ONLY with valid JSON, no markdown:
       },
     });
 
-    const text = (response.text ?? "").trim();
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = cleanJSON(response.text ?? "") as { correct: boolean; feedback: string };
     return { correct: !!parsed.correct, feedback: parsed.feedback };
   } catch {
     return { correct: false, feedback: "Hmm, I couldn't hear that clearly. Try again!" };
