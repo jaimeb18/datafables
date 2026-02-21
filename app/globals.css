@@ -1,18 +1,167 @@
 @import "tailwindcss";
 
+/* ── Color Palette ──────────────────────────────────────────────────────────
+   Midnight      #383659   (dark navy purple — outlines, text)
+   Deep Wood     #523A3E   (dark brown       — secondary dark, shadows)
+   Foliage       #3A5A40   (dark green       — accents)
+   Lavender      #7A6894   (muted purple     — mid accents, borders)
+   Terracotta    #9E6459   (reddish brown    — button shadow, warm accent)
+   Dusty Mauve   #A88493   (muted pink       — mid-light)
+   Soft Rose     #D899B1   (pink             — alt card, highlights)
+   Sunset Peach  #E89D8A   (peach/coral      — card fill)
+   Golden Glow   #F2D091   (warm gold        — buttons, stars)
+   Warm Cream    #EAE0DF   (very light cream — page bg, card bg)
+──────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #fffbf0;
-  --foreground: #1c1917;
+  --background:       #EAE0DF;   /* Warm Cream */
+  --foreground:       #383659;   /* Midnight */
+
+  --pixel-bg:         #EAE0DF;   /* Warm Cream — page bg */
+  --pixel-card:       #EAE0DF;   /* Warm Cream — card fill */
+  --pixel-card-alt:   #E89D8A;   /* Sunset Peach — alt/selected card */
+  --pixel-dark:       #383659;   /* Midnight — outlines & text */
+  --pixel-mid:        #7A6894;   /* Lavender — hearts, accents */
+  --pixel-blue:       #A88493;   /* Dusty Mauve */
+  --pixel-blue-dark:  #523A3E;   /* Deep Wood */
+  --pixel-btn:        #F2D091;   /* Golden Glow — primary button */
+  --pixel-btn-shadow: #9E6459;   /* Terracotta — button shadow */
+  --pixel-btn-text:   #383659;   /* Midnight — button text */
+  --pixel-yellow:     #F2D091;   /* Golden Glow */
+  --pixel-green:      #3A5A40;   /* Foliage */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-nunito: var(--font-nunito);
+  --font-pixel: var(--font-pixel);
+  --font-stardew: var(--font-stardew);
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(10px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1.8s ease-in-out infinite;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--pixel-bg);
+  /* Subtle dot-grid using Lavender */
+  background-image: radial-gradient(circle, rgba(122,104,148,0.14) 1px, transparent 1px);
+  background-size: 28px 28px;
   color: var(--foreground);
   font-family: var(--font-nunito), "Nunito", sans-serif;
+}
+
+/* Pixel art font utility */
+.font-pixel {
+  font-family: var(--font-pixel), "Pixelify Sans", sans-serif;
+}
+
+/* Stardew Valley–style pixel font */
+.font-stardew {
+  font-family: var(--font-stardew), "Silkscreen", sans-serif;
+}
+
+/* Pixel art card style */
+.pixel-card {
+  background: var(--pixel-card);
+  border: 3px solid var(--pixel-dark);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0px var(--pixel-dark);
+}
+
+.pixel-card-alt {
+  background: var(--pixel-card-alt);
+  border: 3px solid var(--pixel-dark);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0px var(--pixel-dark);
+}
+
+/* Pixel art button — Golden Glow */
+.pixel-btn {
+  background: var(--pixel-btn);
+  color: var(--pixel-btn-text);
+  border: 3px solid var(--pixel-dark);
+  border-radius: 9999px;
+  box-shadow: 4px 4px 0px var(--pixel-btn-shadow);
+  font-family: var(--font-pixel), "Pixelify Sans", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.pixel-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px var(--pixel-btn-shadow);
+}
+
+.pixel-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--pixel-btn-shadow);
+}
+
+.pixel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Pixel art input */
+.pixel-input {
+  border: 3px solid var(--pixel-dark);
+  border-radius: 12px;
+  background: #EAE0DF;
+  box-shadow: 3px 3px 0px var(--pixel-mid);
+  outline: none;
+  font-family: var(--font-nunito), "Nunito", sans-serif;
+}
+
+.pixel-input:focus {
+  border-color: var(--pixel-dark);
+  box-shadow: 3px 3px 0px var(--pixel-btn-shadow);
+}
+
+/* Logo banner — Deep Wood background, Golden Glow border */
+.pixel-logo-banner {
+  background: #523A3E;
+  color: #EAE0DF;
+  border: 4px solid #F2D091;
+  border-radius: 12px;
+  box-shadow: 6px 6px 0px #383659, -2px -2px 0px #7A6894;
+  font-family: var(--font-pixel), "Pixelify Sans", sans-serif;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 28px;
+}
+
+/* Small pixel-art heart bullet */
+.pixel-heart::before {
+  content: "♥";
+  color: var(--pixel-mid);
+  margin-right: 6px;
+  font-size: 0.75rem;
+}
+
+/* Genre card hover */
+.genre-card {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.genre-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--pixel-dark);
+}
+
+.genre-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--pixel-dark);
 }

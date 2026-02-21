@@ -1,11 +1,23 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
+import { Nunito, Pixelify_Sans, Silkscreen } from "next/font/google";
 import "./globals.css";
 
 const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-nunito",
   weight: ["400", "600", "700", "800", "900"],
+});
+
+const pixelifySans = Pixelify_Sans({
+  subsets: ["latin"],
+  variable: "--font-pixel",
+  weight: ["400", "500", "600", "700"],
+});
+
+const silkscreen = Silkscreen({
+  subsets: ["latin"],
+  variable: "--font-stardew",
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -20,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${nunito.variable} font-nunito antialiased`}>{children}</body>
+      <body className={`${nunito.variable} ${pixelifySans.variable} ${silkscreen.variable} font-nunito antialiased`}>{children}</body>
     </html>
   );
 }

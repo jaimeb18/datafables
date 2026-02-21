@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getTranslations } from "@/lib/translations";
 
 interface StoryFormProps {
   onSubmit: (topic: string, ageGroup: string, language: string) => void;
   loading: boolean;
+  prefillTopic?: string;
 }
 
 const LANGUAGES = [
@@ -21,7 +22,7 @@ const LANGUAGES = [
   { value: "Hindi", flag: "🇮🇳" },
 ];
 
-export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
+export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: StoryFormProps) {
   const [language, setLanguage] = useState("English");
   const t = getTranslations(language);
 
@@ -31,20 +32,29 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
     { id: "11-13", label: t.adventurer, emoji: "⚡", desc: t.adventurerAge },
   ];
 
+  const [topic, setTopic] = useState(prefillTopic);
+
+  useEffect(() => {
+    if (prefillTopic) setTopic(prefillTopic);
+  }, [prefillTopic]);
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
-        const topic = data.get("topic") as string;
         const ageGroup = data.get("ageGroup") as string;
         if (topic.trim() && ageGroup) onSubmit(topic.trim(), ageGroup, language);
       }}
-      className="flex flex-col gap-8 w-full max-w-xl"
+      className="flex flex-col gap-7 w-full max-w-xl"
     >
       {/* Topic input */}
       <div className="flex flex-col gap-2">
-        <label htmlFor="topic" className="text-lg font-bold text-amber-800">
+        <label
+          htmlFor="topic"
+          className="font-pixel"
+          style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
+        >
           {t.topicLabel}
         </label>
         <input
@@ -52,15 +62,23 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
           name="topic"
           type="text"
           required
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
           placeholder={t.topicPlaceholder}
           disabled={loading}
-          className="w-full rounded-2xl border-2 border-amber-200 bg-white px-5 py-4 text-base text-gray-800 placeholder-gray-400 shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200 disabled:opacity-60 transition"
+          className="pixel-input w-full px-4 py-3 text-sm disabled:opacity-60"
+          style={{ color: "var(--pixel-dark)" }}
         />
       </div>
 
       {/* Language selector */}
       <div className="flex flex-col gap-3">
-        <span className="text-lg font-bold text-amber-800">{t.languageLabel}</span>
+        <span
+          className="font-pixel"
+          style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
+        >
+          {t.languageLabel}
+        </span>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {LANGUAGES.map((lang) => (
             <button
@@ -68,14 +86,19 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
               type="button"
               disabled={loading}
               onClick={() => setLanguage(lang.value)}
-              className={`flex items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-semibold transition active:scale-95 disabled:opacity-60 ${
-                language === lang.value
-                  ? "border-amber-500 bg-amber-50 text-amber-900 shadow-md"
-                  : "border-amber-200 bg-white text-gray-700 hover:border-amber-300"
-              }`}
+              className="flex items-center gap-2 px-3 py-2.5 text-sm font-semibold disabled:opacity-60 transition-transform active:scale-95"
+              style={{
+                background: language === lang.value ? "var(--pixel-card-alt)" : "#EAE0DF",
+                border: `3px solid ${language === lang.value ? "var(--pixel-dark)" : "var(--pixel-mid)"}`,
+                borderRadius: "10px",
+                boxShadow: language === lang.value
+                  ? "3px 3px 0 var(--pixel-dark)"
+                  : "2px 2px 0 var(--pixel-mid)",
+                color: "var(--pixel-dark)",
+              }}
             >
               <span className="text-lg">{lang.flag}</span>
-              <span>{lang.value}</span>
+              <span className="text-xs">{lang.value}</span>
             </button>
           ))}
         </div>
@@ -83,7 +106,12 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
 
       {/* Age group selector */}
       <div className="flex flex-col gap-3">
-        <span className="text-lg font-bold text-amber-800">{t.readingLevel}</span>
+        <span
+          className="font-pixel"
+          style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
+        >
+          {t.readingLevel}
+        </span>
         <div className="grid grid-cols-3 gap-3">
           {AGE_GROUPS.map((group) => (
             <label key={group.id} className="cursor-pointer group">
@@ -95,10 +123,25 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
                 disabled={loading}
                 className="sr-only peer"
               />
-              <div className="flex flex-col items-center gap-1 rounded-2xl border-2 border-amber-200 bg-white py-4 px-2 text-center shadow-sm transition peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-md group-hover:border-amber-300">
+              <div
+                className="flex flex-col items-center gap-1 py-4 px-2 text-center transition peer-checked:scale-95"
+                style={{
+                  background: "#EAE0DF",
+                  border: "3px solid var(--pixel-mid)",
+                  borderRadius: "12px",
+                  boxShadow: "3px 3px 0 var(--pixel-mid)",
+                }}
+              >
                 <span className="text-3xl">{group.emoji}</span>
-                <span className="font-bold text-gray-800 text-sm">{group.label}</span>
-                <span className="text-xs text-gray-500">{group.desc}</span>
+                <span
+                  className="font-pixel"
+                  style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}
+                >
+                  {group.label}
+                </span>
+                <span className="text-xs font-semibold" style={{ color: "var(--pixel-mid)" }}>
+                  {group.desc}
+                </span>
               </div>
             </label>
           ))}
@@ -109,7 +152,7 @@ export default function StoryForm({ onSubmit, loading }: StoryFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-2xl bg-amber-400 py-4 text-lg font-bold text-amber-900 shadow-md transition hover:bg-amber-500 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="pixel-btn w-full py-4 text-sm"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-3">
