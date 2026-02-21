@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AudioPlayer from "./AudioPlayer";
 
 interface VocabWord {
@@ -17,9 +17,18 @@ interface BookPage {
   imageDataUrl: string | null;
 }
 
+interface BranchChoice {
+  label: string;
+  pages: BookPage[];
+}
+
 interface StoryDisplayProps {
   title: string;
-  pages: BookPage[];
+  branchPointIndex: number;
+  commonPages: BookPage[];
+  branchPointPage: BookPage;
+  choiceA: BranchChoice;
+  choiceB: BranchChoice;
   facts: string[];
   onReset: () => void;
 }
@@ -45,7 +54,7 @@ function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => 
             <button
               onClick={onClose}
               className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 transition text-lg mt-0.5"
-            >✕</button>
+            >&#x2715;</button>
           </div>
         </div>
         <div className="h-px bg-gray-200 mx-6" />
@@ -112,22 +121,139 @@ function PageText({
   );
 }
 
-export default function StoryDisplay({ title, pages, facts, onReset }: StoryDisplayProps) {
+function ChoiceScreen({
+  choiceA,
+  choiceB,
+  onChoose,
+}: {
+  choiceA: BranchChoice;
+  choiceB: BranchChoice;
+  onChoose: (choice: "A" | "B") => void;
+}) {
+  const parchmentBg = {
+    background: "linear-gradient(135deg, #ede5d0 0%, #f5edd8 50%, #faf3e4 100%)",
+  };
+
+  return (
+    <div
+      className="flex-1 min-w-0 rounded-sm overflow-hidden"
+      style={{
+        boxShadow: "0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.15)",
+      }}
+    >
+      <div className="flex flex-col items-center gap-6 p-8 sm:p-12" style={parchmentBg}>
+        <h2
+          className="text-2xl sm:text-3xl font-bold text-amber-900 text-center"
+          style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+        >
+          What happens next? You decide!
+        </h2>
+        <p className="text-stone-500 text-sm text-center" style={{ fontFamily: "Georgia, serif" }}>
+          Choose a path to continue the story
+        </p>
+        <div className="flex flex-col sm:flex-row gap-6 w-full max-w-3xl">
+          {([
+            { choice: "A" as const, data: choiceA },
+            { choice: "B" as const, data: choiceB },
+          ]).map(({ choice, data }) => (
+            <button
+              key={choice}
+              onClick={() => onChoose(choice)}
+              className="flex-1 rounded-xl border-2 border-amber-300 bg-white/80 hover:border-amber-500 hover:shadow-xl transition-all duration-200 p-5 flex flex-col items-center gap-4 group active:scale-[0.98]"
+            >
+              {data.pages[0]?.imageDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={data.pages[0].imageDataUrl}
+                  alt={`Preview: ${data.label}`}
+                  className="w-full h-48 sm:h-56 object-contain rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-48 sm:h-56 flex items-center justify-center bg-amber-50 rounded-lg">
+                  <span className="text-5xl opacity-30">🎨</span>
+                </div>
+              )}
+              <p
+                className="text-base sm:text-lg font-medium text-amber-800 group-hover:text-amber-950 transition-colors leading-snug text-center"
+                style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+              >
+                {data.label}
+              </p>
+              <span className="text-xs text-amber-500 font-semibold uppercase tracking-wider">
+                Choose this path
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StoryDisplay({
+  title,
+  branchPointIndex,
+  commonPages,
+  branchPointPage,
+  choiceA,
+  choiceB,
+  facts,
+  onReset,
+}: StoryDisplayProps) {
   const [currentPage, setCurrentPage] = useState(0);
+  const [chosenBranch, setChosenBranch] = useState<"none" | "A" | "B">("none");
+  const [showChoiceScreen, setShowChoiceScreen] = useState(false);
   const [showAudio, setShowAudio] = useState(false);
   const [activeVocab, setActiveVocab] = useState<VocabWord | null>(null);
 
-  const page = pages[currentPage];
+  // Always build the full 10-page array so all dots render.
+  // Before a choice is made, use choiceA pages as placeholders for the dot count.
+  const activePages = useMemo(() => {
+    const base = [...commonPages, branchPointPage];
+    const branchPages =
+      chosenBranch === "B" ? choiceB.pages : choiceA.pages;
+    return [...base, ...branchPages];
+  }, [commonPages, branchPointPage, choiceA, choiceB, chosenBranch]);
+
+  const page = activePages[currentPage];
   const isFirst = currentPage === 0;
-  const isLast = currentPage === pages.length - 1;
+  const isLast = currentPage === activePages.length - 1;
+  const isBranchPoint = currentPage === branchPointIndex;
+  const needsChoice = isBranchPoint && chosenBranch === "none";
 
   useEffect(() => {
     setShowAudio(false);
     setActiveVocab(null);
   }, [currentPage]);
 
-  const goNext = () => { if (!isLast) setCurrentPage((p) => p + 1); };
-  const goPrev = () => { if (!isFirst) setCurrentPage((p) => p - 1); };
+  const goNext = () => {
+    if (needsChoice) {
+      setShowChoiceScreen(true);
+      return;
+    }
+    if (!isLast) setCurrentPage((p) => p + 1);
+  };
+
+  const goPrev = () => {
+    if (!isFirst) setCurrentPage((p) => p - 1);
+  };
+
+  const handleChoose = (choice: "A" | "B") => {
+    setChosenBranch(choice);
+    setShowChoiceScreen(false);
+    setCurrentPage(branchPointIndex + 1);
+  };
+
+  const handleTryOtherPath = () => {
+    setChosenBranch("none");
+    setShowChoiceScreen(false);
+    setCurrentPage(branchPointIndex);
+  };
+
+  // Determine if the next button should be disabled
+  // Allow clicking next on branch point (it opens the choice screen).
+  // Only disable if already showing the choice screen, or on the actual last page.
+  const nextDisabled = showChoiceScreen || (isLast && !needsChoice);
 
   return (
     <div className="w-full max-w-6xl flex flex-col gap-6">
@@ -143,16 +269,31 @@ export default function StoryDisplay({ title, pages, facts, onReset }: StoryDisp
 
       {/* Page dots */}
       <div className="flex items-center justify-center gap-2 flex-wrap px-4">
-        {pages.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentPage(i)}
-            className={`rounded-full transition-all duration-200 ${
-              i === currentPage ? "w-4 h-4 bg-amber-700 scale-110" : "w-2.5 h-2.5 bg-amber-300 hover:bg-amber-400"
-            }`}
-            aria-label={`Go to page ${i + 1}`}
-          />
-        ))}
+        {activePages.map((_, i) => {
+          const isBranchDot = i === branchPointIndex;
+          const isBeyondBranch = i > branchPointIndex && chosenBranch === "none";
+          const isUnreachable = isBeyondBranch && !showChoiceScreen;
+          return (
+            <button
+              key={i}
+              onClick={() => {
+                if (!isUnreachable) {
+                  setShowChoiceScreen(false);
+                  setCurrentPage(i);
+                }
+              }}
+              disabled={isUnreachable}
+              className={`rounded-full transition-all duration-200 ${
+                i === currentPage && !showChoiceScreen
+                  ? "w-4 h-4 bg-amber-700 scale-110"
+                  : isBranchDot
+                  ? "w-3.5 h-3.5 bg-amber-500 ring-2 ring-amber-300"
+                  : "w-2.5 h-2.5 bg-amber-300 hover:bg-amber-400"
+              } ${isUnreachable ? "opacity-30 cursor-not-allowed" : ""}`}
+              aria-label={`Go to page ${i + 1}${isBranchDot ? " (choice point)" : ""}`}
+            />
+          );
+        })}
       </div>
 
       {/* Book + side arrows */}
@@ -160,124 +301,149 @@ export default function StoryDisplay({ title, pages, facts, onReset }: StoryDisp
 
         {/* Left arrow */}
         <button
-          onClick={goPrev}
-          disabled={isFirst}
-          className="flex-shrink-0 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-amber-900 text-amber-50 text-3xl font-light flex items-center justify-center shadow-xl transition hover:bg-amber-800 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed select-none"
-        >‹</button>
-
-        {/* Open book */}
-        <div
-          className="flex-1 min-w-0 rounded-sm overflow-hidden"
-          style={{
-            boxShadow: "0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.15)",
+          onClick={() => {
+            if (showChoiceScreen) {
+              setShowChoiceScreen(false);
+            } else {
+              goPrev();
+            }
           }}
-        >
-          <div className="flex flex-col sm:flex-row sm:h-[580px]">
+          disabled={isFirst && !showChoiceScreen}
+          className="flex-shrink-0 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-amber-900 text-amber-50 text-3xl font-light flex items-center justify-center shadow-xl transition hover:bg-amber-800 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed select-none"
+        >&#x2039;</button>
 
-            {/* Left page — illustration */}
-            <div
-              className="relative w-full sm:w-1/2 flex-shrink-0 min-h-[300px] sm:min-h-0 flex items-center justify-center"
-              style={{
-                background: "linear-gradient(105deg, #ede5d0 0%, #f5edd8 50%, #ede0c4 100%)",
-                boxShadow: "inset -8px 0 20px rgba(0,0,0,0.15)",
-              }}
-            >
-              {page.imageDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={page.imageDataUrl}
-                  alt={`Page ${currentPage + 1} illustration`}
-                  className="w-full h-full object-contain p-6"
-                />
-              ) : (
-                <span className="text-7xl opacity-20 animate-pulse">🎨</span>
-              )}
-              {/* Left page number */}
-              <span
-                className="absolute bottom-4 left-5 text-xs text-stone-400 italic select-none"
-                style={{ fontFamily: "Georgia, serif" }}
+        {/* Choice screen or book */}
+        {showChoiceScreen ? (
+          <ChoiceScreen
+            choiceA={choiceA}
+            choiceB={choiceB}
+            onChoose={handleChoose}
+          />
+        ) : (
+          /* Open book */
+          <div
+            className="flex-1 min-w-0 rounded-sm overflow-hidden"
+            style={{
+              boxShadow: "0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div className="flex flex-col sm:flex-row sm:h-[580px]">
+
+              {/* Left page — illustration */}
+              <div
+                className="relative w-full sm:w-1/2 flex-shrink-0 min-h-[300px] sm:min-h-0 flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(105deg, #ede5d0 0%, #f5edd8 50%, #ede0c4 100%)",
+                  boxShadow: "inset -8px 0 20px rgba(0,0,0,0.15)",
+                }}
               >
-                {currentPage * 2 + 1}
-              </span>
-            </div>
-
-            {/* Spine */}
-            <div
-              className="hidden sm:block w-5 flex-shrink-0"
-              style={{
-                background: "linear-gradient(to right, #3d2b1a 0%, #6b4c2a 30%, #8c6a3f 50%, #6b4c2a 70%, #3d2b1a 100%)",
-                boxShadow: "inset 0 0 8px rgba(0,0,0,0.4)",
-              }}
-            />
-
-            {/* Right page — text */}
-            <div
-              className="relative flex-1 flex flex-col justify-center gap-5 p-8 sm:p-14"
-              style={{
-                background: "linear-gradient(255deg, #ede5d0 0%, #f5edd8 50%, #faf3e4 100%)",
-                boxShadow: "inset 8px 0 20px rgba(0,0,0,0.07)",
-              }}
-            >
-              {/* Listen button — top right of page */}
-              <button
-                onClick={() => setShowAudio((s) => !s)}
-                className={`absolute top-4 right-4 text-xs px-3 py-1.5 rounded-full border transition active:scale-95 ${
-                  showAudio
-                    ? "border-sky-400 bg-sky-50 text-sky-700"
-                    : "border-stone-300 bg-white/60 text-stone-500 hover:bg-white"
-                }`}
-              >
-                🎧 {showAudio ? "Hide" : "Listen"}
-              </button>
-
-              {/* Chapter rule */}
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-stone-300/70" />
+                {page.imageDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={page.imageDataUrl}
+                    alt={`Page ${currentPage + 1} illustration`}
+                    className="w-full h-full object-contain p-6"
+                  />
+                ) : (
+                  <span className="text-7xl opacity-20 animate-pulse">🎨</span>
+                )}
+                {/* Left page number */}
                 <span
-                  className="text-stone-400 text-[10px] tracking-[0.2em] uppercase select-none"
+                  className="absolute bottom-4 left-5 text-xs text-stone-400 italic select-none"
                   style={{ fontFamily: "Georgia, serif" }}
                 >
-                  Page {currentPage + 1} of {pages.length}
+                  {currentPage * 2 + 1}
                 </span>
-                <div className="h-px flex-1 bg-stone-300/70" />
               </div>
 
-              {/* Story text */}
-              <PageText
-                key={currentPage}
-                text={page.text}
-                vocabulary={page.vocabulary ?? []}
-                onWordClick={setActiveVocab}
+              {/* Spine */}
+              <div
+                className="hidden sm:block w-5 flex-shrink-0"
+                style={{
+                  background: "linear-gradient(to right, #3d2b1a 0%, #6b4c2a 30%, #8c6a3f 50%, #6b4c2a 70%, #3d2b1a 100%)",
+                  boxShadow: "inset 0 0 8px rgba(0,0,0,0.4)",
+                }}
               />
 
-              {page.vocabulary && page.vocabulary.length > 0 && (
-                <p className="text-xs text-[#1a73e8] opacity-60" style={{ fontFamily: "Georgia, serif" }}>
-                  Tap the <span className="underline font-semibold">blue words</span> to look them up.
-                </p>
-              )}
-
-              {/* Right page number */}
-              <span
-                className="absolute bottom-4 right-5 text-xs text-stone-400 italic select-none"
-                style={{ fontFamily: "Georgia, serif" }}
+              {/* Right page — text */}
+              <div
+                className="relative flex-1 flex flex-col justify-center gap-5 p-8 sm:p-14"
+                style={{
+                  background: "linear-gradient(255deg, #ede5d0 0%, #f5edd8 50%, #faf3e4 100%)",
+                  boxShadow: "inset 8px 0 20px rgba(0,0,0,0.07)",
+                }}
               >
-                {currentPage * 2 + 2}
-              </span>
-            </div>
+                {/* Listen button — top right of page */}
+                <button
+                  onClick={() => setShowAudio((s) => !s)}
+                  className={`absolute top-4 right-4 text-xs px-3 py-1.5 rounded-full border transition active:scale-95 ${
+                    showAudio
+                      ? "border-sky-400 bg-sky-50 text-sky-700"
+                      : "border-stone-300 bg-white/60 text-stone-500 hover:bg-white"
+                  }`}
+                >
+                  🎧 {showAudio ? "Hide" : "Listen"}
+                </button>
 
+                {/* Chapter rule */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-300/70" />
+                  <span
+                    className="text-stone-400 text-[10px] tracking-[0.2em] uppercase select-none"
+                    style={{ fontFamily: "Georgia, serif" }}
+                  >
+                    Page {currentPage + 1} of {activePages.length}
+                  </span>
+                  <div className="h-px flex-1 bg-stone-300/70" />
+                </div>
+
+                {/* Story text */}
+                <PageText
+                  key={currentPage}
+                  text={page.text}
+                  vocabulary={page.vocabulary ?? []}
+                  onWordClick={setActiveVocab}
+                />
+
+                {page.vocabulary && page.vocabulary.length > 0 && (
+                  <p className="text-xs text-[#1a73e8] opacity-60" style={{ fontFamily: "Georgia, serif" }}>
+                    Tap the <span className="underline font-semibold">blue words</span> to look them up.
+                  </p>
+                )}
+
+                {/* Branch point hint */}
+                {needsChoice && (
+                  <p
+                    className="text-sm text-amber-600 font-semibold text-center animate-pulse"
+                    style={{ fontFamily: "Georgia, serif" }}
+                  >
+                    A choice awaits... tap next to decide!
+                  </p>
+                )}
+
+                {/* Right page number */}
+                <span
+                  className="absolute bottom-4 right-5 text-xs text-stone-400 italic select-none"
+                  style={{ fontFamily: "Georgia, serif" }}
+                >
+                  {currentPage * 2 + 2}
+                </span>
+              </div>
+
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right arrow */}
         <button
           onClick={goNext}
-          disabled={isLast}
+          disabled={nextDisabled}
           className="flex-shrink-0 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-amber-900 text-amber-50 text-3xl font-light flex items-center justify-center shadow-xl transition hover:bg-amber-800 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed select-none"
-        >›</button>
+        >&#x203a;</button>
       </div>
 
       {/* Audio player */}
-      {showAudio && <AudioPlayer key={currentPage} storyText={page.text} />}
+      {showAudio && !showChoiceScreen && <AudioPlayer key={currentPage} storyText={page.text} />}
 
       {/* Did You Know? — last page */}
       {isLast && facts.length > 0 && (
@@ -296,13 +462,22 @@ export default function StoryDisplay({ title, pages, facts, onReset }: StoryDisp
         </div>
       )}
 
+      {/* End-of-story actions */}
       {isLast && (
-        <button
-          onClick={onReset}
-          className="w-full rounded-2xl border-2 border-amber-300 bg-white py-4 text-base font-bold text-amber-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
-        >
-          📖 Create Another Story
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleTryOtherPath}
+            className="w-full rounded-2xl border-2 border-purple-300 bg-white py-4 text-base font-bold text-purple-700 shadow-sm transition hover:bg-purple-50 active:scale-95"
+          >
+            🔀 Try the Other Path
+          </button>
+          <button
+            onClick={onReset}
+            className="w-full rounded-2xl border-2 border-amber-300 bg-white py-4 text-base font-bold text-amber-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
+          >
+            📖 Create Another Story
+          </button>
+        </div>
       )}
     </div>
   );

@@ -18,9 +18,18 @@ interface BookPage {
   imageDataUrl: string | null;
 }
 
+interface BranchChoice {
+  label: string;
+  pages: BookPage[];
+}
+
 interface BookResult {
   title: string;
-  pages: BookPage[];
+  branchPointIndex: number;
+  commonPages: BookPage[];
+  branchPointPage: BookPage;
+  choiceA: BranchChoice;
+  choiceB: BranchChoice;
   facts: string[];
 }
 
@@ -78,7 +87,11 @@ export default function Home() {
         {state === "done" && result ? (
           <StoryDisplay
             title={result.title}
-            pages={result.pages}
+            branchPointIndex={result.branchPointIndex}
+            commonPages={result.commonPages}
+            branchPointPage={result.branchPointPage}
+            choiceA={result.choiceA}
+            choiceB={result.choiceB}
             facts={result.facts}
             onReset={handleReset}
           />
@@ -97,7 +110,7 @@ export default function Home() {
 
             {error && (
               <div className="w-full rounded-2xl bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700">
-                ⚠️ {error}
+                {error}
               </div>
             )}
 
@@ -107,9 +120,9 @@ export default function Home() {
               <div className="flex flex-col items-center gap-3 py-4">
                 <div className="text-5xl animate-bounce">🔮</div>
                 <p className="text-sm text-gray-500 text-center">
-                  Gathering facts, crafting your 10-page story, and painting illustrations…
+                  Gathering facts, crafting your interactive story, and painting illustrations…
                   <br />
-                  <span className="font-medium">This may take about 30 seconds.</span>
+                  <span className="font-medium">This may take about a minute.</span>
                 </p>
               </div>
             )}

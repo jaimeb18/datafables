@@ -20,6 +20,15 @@ export interface StoryResult {
   pages: StoryPage[];
 }
 
+export interface BranchingStoryResult {
+  title: string;
+  branchPointIndex: number;
+  commonPages: StoryPage[];
+  branchPointPage: StoryPage;
+  choiceA: { label: string; pages: StoryPage[] };
+  choiceB: { label: string; pages: StoryPage[] };
+}
+
 export async function generateStory(
   topic: string,
   ageGroup: string,
@@ -85,6 +94,105 @@ Respond ONLY with valid JSON (no markdown, no extra text):
   const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
   const parsed = JSON.parse(cleaned);
   return { title: parsed.title, pages: parsed.pages };
+}
+
+export async function generateBranchingStory(
+  topic: string,
+  ageGroup: string,
+  facts: string[],
+  language: string
+): Promise<BranchingStoryResult> {
+  const factsText =
+    facts.length > 0
+      ? `Weave these real facts naturally into the story across different pages and branches:\n${facts.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
+      : "";
+
+  const ageInstructions: Record<string, string> = {
+    "5-7": "Use very simple words, very short sentences. Like a picture book page.",
+    "8-10": "Use clear language with some interesting new vocabulary words.",
+    "11-13": "Use richer vocabulary with some challenging words worth learning.",
+  };
+
+  const prompt = `You are a master children's storyteller creating an interactive "Choose Your Own Adventure" illustrated book.
+
+Create a branching 10-page children's story in ${language} for children aged ${ageGroup} about: "${topic}"
+
+Reading level: ${ageInstructions[ageGroup] || ageInstructions["8-10"]}
+
+${factsText}
+
+STRUCTURE:
+- Pick a random branch point page number B between 4 and 8 (1-indexed). This is the page where the story splits.
+- Pages 1 through B-1 are the COMMON PAGES that every reader sees.
+- Page B is the BRANCH POINT PAGE. Its text should build to a clear moment of decision for the main character (e.g., "Should Maya follow the river, or climb the mountain?").
+- After page B, the story splits into TWO branches:
+  - Branch A: pages B+1 through 10 (a complete continuation and ending)
+  - Branch B: pages B+1 through 10 (a different continuation and ending)
+- Each branch is a complete, satisfying story arc that resolves independently.
+- Both branches must maintain the same characters and setting.
+- Both branches should weave in educational facts.
+
+For each branch, provide a short choice label (8-15 words) describing the path a child would choose. Example: "Follow the shimmering river deeper into the forest"
+
+Rules:
+- Each page has exactly 30-50 words (brief, like a real picture book page)
+- Include at least one relatable child character
+- End each branch on an uplifting or curious note
+- For each page, identify 0-2 vocabulary words that might be challenging for the age group
+  - The word MUST appear verbatim in that page's text
+  - Provide the part of speech (noun, verb, adjective, adverb, etc.) in ${language}
+  - Provide a simple, kid-friendly definition in ${language}
+  - Provide a short example sentence using the word in ${language}
+- Write everything in ${language}
+
+Respond ONLY with valid JSON (no markdown, no extra text):
+{
+  "title": "Story Title Here",
+  "branchPointIndex": <0-indexed page number of the branch point>,
+  "commonPages": [
+    { "text": "Page text here, 30-50 words.", "vocabulary": [...] }
+  ],
+  "branchPointPage": { "text": "The page where the choice happens...", "vocabulary": [...] },
+  "choiceA": {
+    "label": "Short description of choice A path",
+    "pages": [
+      { "text": "Branch A continuation page...", "vocabulary": [...] }
+    ]
+  },
+  "choiceB": {
+    "label": "Short description of choice B path",
+    "pages": [
+      { "text": "Branch B continuation page...", "vocabulary": [...] }
+    ]
+  }
+}
+
+IMPORTANT: branchPointIndex is 0-indexed. If you pick page 5 (1-indexed), branchPointIndex = 4.
+commonPages should have exactly branchPointIndex pages.
+Each branch (choiceA.pages and choiceB.pages) should have exactly (10 - branchPointIndex - 1) pages.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+  });
+
+  const text = (response.text ?? "").trim();
+  const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  const bpi = parsed.branchPointIndex;
+  if (bpi < 3 || bpi > 7) {
+    throw new Error(`Invalid branchPointIndex: ${bpi}. Must be between 3 and 7.`);
+  }
+
+  return {
+    title: parsed.title,
+    branchPointIndex: bpi,
+    commonPages: parsed.commonPages,
+    branchPointPage: parsed.branchPointPage,
+    choiceA: parsed.choiceA,
+    choiceB: parsed.choiceB,
+  };
 }
 
 export async function generateImage(
