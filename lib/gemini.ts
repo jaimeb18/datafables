@@ -195,6 +195,39 @@ Each branch (choiceA.pages and choiceB.pages) should have exactly (10 - branchPo
   };
 }
 
+export async function generateCharacterSheet(
+  title: string,
+  allPageTexts: string[]
+): Promise<string> {
+  try {
+    const storyText = allPageTexts.join(" ");
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `You are a children's book art director. Read the following story and identify the main recurring character(s).
+
+Story: "${storyText}"
+
+For each main character, write a precise visual description that an illustrator must follow exactly for every page. Include:
+- Name
+- Age appearance (e.g. "looks about 8 years old")
+- Skin tone (specific, e.g. "warm medium-brown skin")
+- Hair (color, texture, length, style — be very specific)
+- Eyes (color and shape)
+- Clothing they typically wear (colors, style)
+- Any distinctive features (freckles, glasses, etc.)
+
+Keep each character description under 60 words. Be extremely specific so the character looks identical across all illustrations.
+If there are 2 main characters, describe both.
+If there is only 1, describe just that one.
+
+Respond with plain text only, no JSON, no bullet points — just the character description(s).`,
+    });
+    return (response.text ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export async function checkPronunciation(
   word: string,
   audioBase64: string,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateBranchingStory, generateImage, StoryPage } from "@/lib/gemini";
+import { generateBranchingStory, generateCharacterSheet, generateImage, StoryPage } from "@/lib/gemini";
 import { getFactsForTopic } from "@/lib/snowflake";
 
 export async function POST(req: NextRequest) {
@@ -21,9 +21,15 @@ export async function POST(req: NextRequest) {
       ...story.choiceB.pages,
     ];
 
+    // Generate a character design sheet once so all images share the same character look
+    const characterSheet = await generateCharacterSheet(
+      story.title,
+      allPages.map((p) => p.text)
+    );
+
     // Generate all page images in parallel
     const images = await Promise.all(
-      allPages.map((page) => generateImage(topic, story.title, page.text))
+      allPages.map((page) => generateImage(topic, story.title, page.text, characterSheet))
     );
 
     // Reassemble with images

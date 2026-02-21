@@ -14,7 +14,7 @@ export async function generateSpeech(text: string): Promise<Buffer> {
       },
       body: JSON.stringify({
         text,
-        model_id: "eleven_turbo_v2",
+        model_id: "eleven_turbo_v2_5",
         voice_settings: {
           stability: 0.6,
           similarity_boost: 0.8,
