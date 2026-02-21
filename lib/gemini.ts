@@ -53,7 +53,6 @@ Rules:
 - End on an uplifting or curious note
 - For each page, identify 0-2 vocabulary words that might be challenging for the age group
   - The word MUST appear verbatim in that page's text
-  - Provide a phonetic pronunciation (e.g. "/ˌbaɪ.oʊˌluː.mɪˈnɛs.ənt/")
   - Provide the part of speech (noun, verb, adjective, adverb, etc.) in ${language}
   - Provide a simple, kid-friendly definition in ${language}
   - Provide a short example sentence using the word in ${language}
@@ -68,7 +67,6 @@ Respond ONLY with valid JSON (no markdown, no extra text):
       "vocabulary": [
         {
           "word": "difficultword",
-          "phonetic": "/dɪˈfɪkəlt.wɜːd/",
           "partOfSpeech": "noun",
           "definition": "simple kid-friendly definition",
           "example": "A short example sentence using the word."
