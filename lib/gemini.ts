@@ -90,11 +90,77 @@ Respond ONLY with valid JSON (no markdown, no extra text):
 export async function generateImage(
   topic: string,
   title: string,
-  pageText: string
+  pageText: string,
+  characterDesignSheet: string = "",
+  styleGuide: string = ""
 ): Promise<string | null> {
   try {
-    const prompt = `Create a colorful, friendly children's book illustration for a story called "${title}" about ${topic}. This page shows: ${pageText.slice(0, 150)}
-Style: bright watercolor painting, whimsical, safe for children, no text in the image, storybook art style.`;
+    const prompt = `Create a premium full-page children's book illustration in PIXEL ART for the story "${title}" about ${topic}.
+
+SCENE TO ILLUSTRATE
+${pageText.slice(0, 280)}
+
+CHARACTER LOCK (strict consistency across all pages)
+Use the established recurring character designs exactly as defined below. Do not redesign them:
+${characterDesignSheet}
+
+Keep recurring characters consistent in:
+- facial features
+- hair/fur/skin tone
+- clothing colors and outfit design
+- accessories
+- body proportions
+- age appearance
+- personality and expression style
+
+If a recurring character appears in this scene, preserve their exact visual identity.
+
+STYLE LOCK (strict consistency across all pages)
+Use the same visual style across the entire book:
+${styleGuide}
+
+Required art style (override if styleGuide conflicts):
+- high-quality children's storybook PIXEL ART
+- warm, whimsical, polished, readable pixel illustration
+- clean pixel shapes and silhouettes
+- limited but rich color palette
+- soft-looking lighting using pixel shading (not painterly brush strokes)
+- expressive faces and body language in pixel form
+- detailed but uncluttered environments
+- consistent pixel density / resolution look across pages
+
+GROUNDING RULE (very important: magical but believable)
+Keep the scene imaginative and whimsical, but visually grounded and physically plausible within a children's story world.
+- Use real-looking actions, expressions, and object behavior
+- Avoid random surreal exaggerations unless explicitly described in the page text
+- If the page includes humor (like burps, farts, messes, slips, etc.), depict it in a playful, child-friendly, natural way (small comedic cues, funny reactions, motion lines, puff clouds if appropriate)
+- Do NOT add exaggerated fantasy effects that are not supported by the story text (example: no rainbow gas, no explosive glitter clouds, no absurd magical beams unless the story specifically says so)
+
+SCENE DIRECTION
+Illustrate the strongest visual action or emotional moment from the page.
+Prioritize:
+1) clear storytelling
+2) character emotion
+3) readable action
+4) supportive environment details
+
+Add magical atmosphere only where it fits the story (glow, sparkles, soft light, floating dust, gentle magical accents), and keep it subtle and purposeful.
+
+COMPOSITION
+- Full-page storybook composition
+- Clear focal point
+- Readable foreground / midground / background
+- Balanced detail (interesting, but not crowded)
+- Easy for children ages 4–10 to understand at a glance
+
+TEXT / SPELLING RULE (important)
+Do NOT include any text, words, letters, numbers, speech bubbles, signs, labels, or written symbols in the image. All text will be added separately in the website UI to ensure correct spelling.
+
+SAFETY
+Family-friendly, safe for children, no scary imagery, no disturbing details, no graphic content.
+
+OUTPUT LOOK
+A polished, consistent, child-friendly pixel art storybook scene that feels magical, warm, and believable.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image",
