@@ -180,11 +180,11 @@ export default function Home() {
           Fixed landscape height; image scaled to show full left↔right
           width with vertical center-crop. Leaves Customization visible.
       ══════════════════════════════════════════════════════════════════ */}
-      <section style={{ position: "relative", height: "62vh", minHeight: "320px", overflow: "hidden" }}>
+      <section style={{ position: "relative", height: "85vh", minHeight: "480px", overflow: "hidden" }}>
         {/* Background image — fill + cover scales to container width,
             so left/right edges of the square image are always visible */}
         <Image
-          src="/hero-bg.jpg"
+          src="/bedroom_background.png"
           alt=""
           aria-hidden="true"
           fill
@@ -192,7 +192,7 @@ export default function Home() {
           sizes="100vw"
           style={{
             objectFit: "cover",
-            objectPosition: "center 35%",
+            objectPosition: "center bottom",
             imageRendering: "pixelated",
           }}
         />
