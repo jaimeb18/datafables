@@ -195,6 +195,46 @@ Each branch (choiceA.pages and choiceB.pages) should have exactly (10 - branchPo
   };
 }
 
+export async function checkPronunciation(
+  word: string,
+  audioBase64: string,
+  mimeType: string
+): Promise<{ correct: boolean; feedback: string }> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType,
+              data: audioBase64,
+            },
+          },
+          {
+            text: `A child is trying to pronounce the word "${word}". Listen to the audio and tell me if they said it correctly or close enough.
+
+Be very encouraging and kind — this is for young children learning to read.
+Keep your response to 1-2 short sentences max.
+If they said it correctly or close enough, celebrate them.
+If they didn't quite get it, gently guide them with a simple tip (like breaking it into syllables).
+
+Respond ONLY with valid JSON, no markdown:
+{"correct": true or false, "feedback": "Your short encouraging message here"}`,
+          },
+        ],
+      },
+    });
+
+    const text = (response.text ?? "").trim();
+    const cleaned = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
+    return { correct: !!parsed.correct, feedback: parsed.feedback };
+  } catch {
+    return { correct: false, feedback: "Hmm, I couldn't hear that clearly. Try again!" };
+  }
+}
+
 export async function generateImage(
   topic: string,
   title: string,

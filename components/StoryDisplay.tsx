@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import AudioPlayer from "./AudioPlayer";
 
 interface VocabWord {
@@ -34,6 +34,56 @@ interface StoryDisplayProps {
 }
 
 function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => void }) {
+  const [recording, setRecording] = useState(false);
+  const [feedback, setFeedback] = useState<{ correct: boolean; feedback: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    setFeedback(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const mimeType = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = (reader.result as string).split(",")[1];
+          setChecking(true);
+          try {
+            const res = await fetch("/api/pronounce", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ word: vocab.word, audioBase64: base64, mimeType }),
+            });
+            const data = await res.json();
+            setFeedback(data);
+          } catch {
+            setFeedback({ correct: false, feedback: "Something went wrong. Try again!" });
+          } finally {
+            setChecking(false);
+          }
+        };
+        reader.readAsDataURL(blob);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      setFeedback({ correct: false, feedback: "Microphone access denied. Please allow mic access and try again." });
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
@@ -69,6 +119,29 @@ function DictionaryModal({ vocab, onClose }: { vocab: VocabWord; onClose: () => 
           {vocab.example && (
             <p className="text-gray-500 text-sm italic ml-6 leading-snug">&ldquo;{vocab.example}&rdquo;</p>
           )}
+
+          {/* Pronunciation practice */}
+          <div className="mt-1 rounded-xl bg-gray-50 border border-gray-100 p-3 flex flex-col gap-2">
+            <p className="text-xs text-gray-500 font-medium">Practice saying it:</p>
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              disabled={checking}
+              className={`flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm font-medium transition active:scale-95 ${
+                recording
+                  ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                  : "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {checking ? "Checking..." : recording ? "⏹ Stop Recording" : "🎤 Record"}
+            </button>
+            {feedback && (
+              <div className={`rounded-lg px-3 py-2 text-sm leading-snug ${
+                feedback.correct ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800"
+              }`}>
+                {feedback.feedback}
+              </div>
+            )}
+          </div>
         </div>
         <div className="px-6 pb-5 pt-1">
           <button
