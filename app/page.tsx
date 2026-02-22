@@ -470,11 +470,9 @@ export default function Home() {
 
             {state === "loading" && (
               <div className="flex flex-col items-center gap-3 py-4">
-                <div
-                  className="animate-bounce text-center"
-                  style={{ fontSize: "2.5rem" }}
-                >
-                  🔮
+                <div className="animate-bounce text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/magic-ball.png" alt="magic ball" style={{ width: "80px", height: "80px", imageRendering: "pixelated", margin: "0 auto" }} />
                 </div>
                 <p
                   className="text-sm text-center font-semibold"
