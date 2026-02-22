@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getTranslations } from "@/lib/translations";
 import { unlockAchievement } from "@/lib/achievements";
-import { getOwnedItems, type ShopItem } from "@/lib/shop";
+import { SHOP_ITEMS, getOwnedItems, type ShopItem } from "@/lib/shop";
 
 interface StoryFormProps {
   onSubmit: (topic: string, ageGroup: string, language: string, characterDescription: string) => void;
@@ -170,31 +170,67 @@ function ColorSwatch({
   selected,
   onSelect,
   disabled,
+  shopLabels,
+  newlyPurchased,
 }: {
   options: { label: string; color: string }[];
   selected: string | null;
   onSelect: (label: string | null) => void;
   disabled: boolean;
+  shopLabels?: Set<string>;
+  newlyPurchased?: string | null;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {options.map((opt) => (
-        <button
-          key={opt.label}
-          type="button"
-          disabled={disabled}
-          onClick={() => onSelect(selected === opt.label ? null : opt.label)}
-          title={opt.label}
-          className="w-9 h-9 transition-all active:scale-90 disabled:opacity-60"
-          style={{
-            backgroundColor: opt.color,
-            border: selected === opt.label ? "3px solid var(--pixel-dark)" : "2px solid var(--pixel-mid)",
-            borderRadius: "8px",
-            boxShadow: selected === opt.label ? "2px 2px 0 var(--pixel-dark)" : "1px 1px 0 var(--pixel-mid)",
-            transform: selected === opt.label ? "scale(1.1)" : undefined,
-          }}
-        />
-      ))}
+      {options.map((opt) => {
+        const isShop = shopLabels?.has(opt.label);
+        const isNew = newlyPurchased === opt.label;
+        return (
+          <button
+            key={opt.label}
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelect(selected === opt.label ? null : opt.label)}
+            title={opt.label + (isShop ? " ★ Shop Item" : "")}
+            className={`relative w-9 h-9 transition-all active:scale-90 disabled:opacity-60${isNew ? " animate-pixel-glow" : ""}`}
+            style={{
+              backgroundColor: opt.color,
+              border: selected === opt.label
+                ? "3px solid var(--pixel-dark)"
+                : isShop
+                  ? "2px solid #2ECC71"
+                  : "2px solid var(--pixel-mid)",
+              borderRadius: "8px",
+              boxShadow: selected === opt.label
+                ? "2px 2px 0 var(--pixel-dark)"
+                : isShop
+                  ? "1px 1px 0 #1a6a3a"
+                  : "1px 1px 0 var(--pixel-mid)",
+              transform: selected === opt.label ? "scale(1.1)" : undefined,
+            }}
+          >
+            {isShop && (
+              <span
+                className="font-pixel"
+                style={{
+                  position: "absolute",
+                  top: "-6px",
+                  right: "-6px",
+                  fontSize: "0.55rem",
+                  lineHeight: 1,
+                  background: "#2ECC71",
+                  color: "#1a1428",
+                  padding: "1px 3px",
+                  border: "1.5px solid #1a6a3a",
+                  pointerEvents: "none",
+                }}
+              >
+                ★
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -205,12 +241,14 @@ function StyledSelect({
   onChange,
   placeholder,
   disabled,
+  shopValues,
 }: {
   value: string | null;
   options: string[];
   onChange: (val: string | null) => void;
   placeholder: string;
   disabled: boolean;
+  shopValues?: Set<string>;
 }) {
   return (
     <select
@@ -221,9 +259,15 @@ function StyledSelect({
       style={{ color: "var(--pixel-dark)" }}
     >
       <option value="">{placeholder}</option>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>{EMOJI[opt] ? `${EMOJI[opt]} ${opt}` : opt}</option>
-      ))}
+      {options.map((opt) => {
+        const isShop = shopValues?.has(opt);
+        const prefix = EMOJI[opt] ? `${EMOJI[opt]} ` : "";
+        return (
+          <option key={opt} value={opt}>
+            {isShop ? `★ ${prefix}${opt} (Shop)` : `${prefix}${opt}`}
+          </option>
+        );
+      })}
     </select>
   );
 }
@@ -1034,9 +1078,36 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
 
   // Shop unlocked items — loaded after mount, refreshed on purchase
   const [ownedShopItems, setOwnedShopItems] = useState<ShopItem[]>([]);
+  // Track the most recently purchased item for highlight animation
+  const [newlyPurchased, setNewlyPurchased] = useState<string | null>(null);
   useEffect(() => {
     setOwnedShopItems(getOwnedItems());
-    const refresh = () => setOwnedShopItems(getOwnedItems());
+    const refresh = (e: Event) => {
+      setOwnedShopItems(getOwnedItems());
+      // Auto-open designer and auto-equip the purchased item
+      const detail = (e as CustomEvent).detail;
+      if (detail?.id) {
+        const item = SHOP_ITEMS.find((i) => i.id === detail.id);
+        if (item) {
+          setShowDesigner(true);
+          setNewlyPurchased(item.value);
+          setTimeout(() => setNewlyPurchased(null), 3000);
+          // Auto-equip the purchased item
+          if (item.category === "hair_color") {
+            setTraits((prev) => ({ ...prev, hairColor: item.value }));
+          } else if (item.category === "hair_style") {
+            setTraits((prev) => ({ ...prev, hairStyle: item.value }));
+          } else if (item.category === "accessory") {
+            setTraits((prev) => ({
+              ...prev,
+              accessories: prev.accessories.includes(item.value)
+                ? prev.accessories
+                : [...prev.accessories, item.value],
+            }));
+          }
+        }
+      }
+    };
     window.addEventListener("datafables:shop_purchase", refresh);
     return () => window.removeEventListener("datafables:shop_purchase", refresh);
   }, []);
@@ -1060,6 +1131,17 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
       .filter((i) => i.category === "accessory")
       .map((i) => i.value),
   ];
+
+  // Sets of shop-unlocked values for visual indicators
+  const shopHairColorLabels = new Set(
+    ownedShopItems.filter((i) => i.category === "hair_color").map((i) => i.value)
+  );
+  const shopHairStyleValues = new Set(
+    ownedShopItems.filter((i) => i.category === "hair_style").map((i) => i.value)
+  );
+  const shopAccessoryValues = new Set(
+    ownedShopItems.filter((i) => i.category === "accessory").map((i) => i.value)
+  );
 
   const updateTrait = <K extends keyof CharacterTraits>(key: K, value: CharacterTraits[K]) => {
     setTraits((prev) => ({ ...prev, [key]: value }));
@@ -1191,6 +1273,8 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
                 selected={traits.hairColor}
                 onSelect={(v) => updateTrait("hairColor", v)}
                 disabled={loading}
+                shopLabels={shopHairColorLabels}
+                newlyPurchased={newlyPurchased}
               />
             </div>
 
@@ -1203,6 +1287,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
                 onChange={(v) => updateTrait("hairStyle", v)}
                 placeholder={t.pickHairStyle}
                 disabled={loading}
+                shopValues={shopHairStyleValues}
               />
             </div>
 
@@ -1268,24 +1353,54 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
             <div className="flex flex-col gap-2">
               <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.accessories}</span>
               <div className="flex flex-wrap gap-2">
-                {allAccessories.map((acc) => (
-                  <button
-                    key={acc}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => toggleAccessory(acc)}
-                    className="px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
-                    style={{
-                      background: traits.accessories.includes(acc) ? "var(--pixel-card-alt)" : "var(--pixel-card)",
-                      border: `${traits.accessories.includes(acc) ? "3px" : "2px"} solid ${traits.accessories.includes(acc) ? "var(--pixel-dark)" : "var(--pixel-mid)"}`,
-                      borderRadius: "8px",
-                      boxShadow: traits.accessories.includes(acc) ? "2px 2px 0 var(--pixel-dark)" : "1px 1px 0 var(--pixel-mid)",
-                      color: "var(--pixel-dark)",
-                    }}
-                  >
-                    {EMOJI[acc] ? `${EMOJI[acc]} ` : ""}{acc}
-                  </button>
-                ))}
+                {allAccessories.map((acc) => {
+                  const isShop = shopAccessoryValues.has(acc);
+                  const isActive = traits.accessories.includes(acc);
+                  const isNew = newlyPurchased === acc;
+                  return (
+                    <button
+                      key={acc}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => toggleAccessory(acc)}
+                      className={`relative px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60${isNew ? " animate-pixel-glow" : ""}`}
+                      style={{
+                        background: isActive
+                          ? isShop ? "linear-gradient(135deg, #1a6a3a 0%, #2ECC71 100%)" : "var(--pixel-card-alt)"
+                          : isShop ? "rgba(46,204,113,0.08)" : "var(--pixel-card)",
+                        border: isActive
+                          ? `3px solid ${isShop ? "#2ECC71" : "var(--pixel-dark)"}`
+                          : `2px solid ${isShop ? "#2ECC71" : "var(--pixel-mid)"}`,
+                        borderRadius: "8px",
+                        boxShadow: isActive
+                          ? `2px 2px 0 ${isShop ? "#1a6a3a" : "var(--pixel-dark)"}`
+                          : `1px 1px 0 ${isShop ? "#1a6a3a" : "var(--pixel-mid)"}`,
+                        color: isActive && isShop ? "#fff" : "var(--pixel-dark)",
+                      }}
+                    >
+                      {isShop && (
+                        <span
+                          className="font-pixel"
+                          style={{
+                            position: "absolute",
+                            top: "-6px",
+                            right: "-6px",
+                            fontSize: "0.5rem",
+                            lineHeight: 1,
+                            background: "#2ECC71",
+                            color: "#1a1428",
+                            padding: "1px 3px",
+                            border: "1.5px solid #1a6a3a",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          ★
+                        </span>
+                      )}
+                      {EMOJI[acc] ? `${EMOJI[acc]} ` : ""}{acc}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

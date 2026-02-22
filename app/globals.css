@@ -165,3 +165,19 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0px var(--pixel-dark);
 }
+
+/* Pixel glow animation for newly purchased shop items */
+@keyframes pixel-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px #2ECC71, 0 0 8px rgba(46, 204, 113, 0.4), 2px 2px 0 #1a6a3a;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 10px #2ECC71, 0 0 20px rgba(46, 204, 113, 0.5), 2px 2px 0 #1a6a3a;
+    transform: scale(1.08);
+  }
+}
+
+.animate-pixel-glow {
+  animation: pixel-glow 1s ease-in-out 3;
+}
