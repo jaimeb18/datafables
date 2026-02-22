@@ -7,14 +7,16 @@ interface GenreCardProps {
   description: string;
   sprite: React.ReactNode;
   onClick: () => void;
+  selected?: boolean;
 }
 
-export default function GenreCard({ genre, description, sprite, onClick }: GenreCardProps) {
+export default function GenreCard({ genre, description, sprite, onClick, selected = false }: GenreCardProps) {
   return (
     <button
       onClick={onClick}
       className="pixel-card genre-card flex flex-col items-center gap-3 p-4 pb-6 w-full text-left"
       type="button"
+      style={selected ? { background: "var(--pixel-card-alt)" } : undefined}
     >
       {/* Pixel art sprite — fixed-height box so all images align */}
       <div
