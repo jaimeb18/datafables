@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateBranchingStory, generateCharacterSheet, generateImage, StoryPage } from "@/lib/gemini";
 import { getFactsForTopic } from "@/lib/snowflake";
 import { getPracticeWords } from "@/lib/vectorai";
+import { checkStorySafety } from "@/lib/safetykit";
+import { storeStory } from "@/lib/actian";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,10 +41,13 @@ export async function POST(req: NextRequest) {
     // Combine user's character description with AI-generated character sheet
     const combinedCharacterSheet = [characterDescription, characterSheet].filter(Boolean).join("\n\n");
 
-    // Generate all page images in parallel
-    const images = await Promise.all(
-      allPages.map((page) => generateImage(topic, story.title, page.text, combinedCharacterSheet))
-    );
+    // Generate all page images + run safety check in parallel
+    const allPageText = allPages.map((p) => p.text).join("\n\n");
+    const [images, safetyResult] = await Promise.all([
+      Promise.all(allPages.map((page) => generateImage(topic, story.title, page.text, combinedCharacterSheet))),
+      checkStorySafety(allPageText),
+    ]);
+    console.log(`[safety] safe=${safetyResult.safe} score=${safetyResult.score} provider=${safetyResult.provider} flags=${safetyResult.flags.join(",") || "none"}`);
 
     // Reassemble with images
     let idx = 0;
@@ -63,6 +68,17 @@ export async function POST(req: NextRequest) {
       imageDataUrl: images[idx++],
     }));
 
+    // Store story in Actian VectorAI DB for recommendations (fire-and-forget)
+    const storyId = `${Date.now()}-${topic.replace(/\s+/g, "_")}`;
+    const summarySentence = story.commonPages[0]?.text?.slice(0, 300) ?? story.title;
+    storeStory({
+      id: storyId,
+      title: story.title,
+      topic,
+      ageGroup,
+      summary: summarySentence,
+    }).catch(() => {}); // non-blocking
+
     return NextResponse.json({
       title: story.title,
       branchPointIndex: story.branchPointIndex,
@@ -71,6 +87,8 @@ export async function POST(req: NextRequest) {
       choiceA: { label: story.choiceA.label, pages: choiceAPages },
       choiceB: { label: story.choiceB.label, pages: choiceBPages },
       facts,
+      safety: safetyResult,
+      storyId,
     });
   } catch (err) {
     console.error("Generate error:", err);

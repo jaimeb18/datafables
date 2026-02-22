@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import AudioPlayer from "./AudioPlayer";
 import { getTranslations } from "@/lib/translations";
+import { unlockAchievement, incrementCounter } from "@/lib/achievements";
+import SimilarStories from "./SimilarStories";
 
 interface VocabWord {
   word: string;
@@ -23,6 +25,14 @@ interface BranchChoice {
   pages: BookPage[];
 }
 
+interface SafetyResult {
+  safe: boolean;
+  score: number;
+  flags: string[];
+  provider: "safetykit" | "gemini_fallback";
+  decisionId?: string;
+}
+
 interface StoryDisplayProps {
   title: string;
   branchPointIndex: number;
@@ -31,8 +41,11 @@ interface StoryDisplayProps {
   choiceA: BranchChoice;
   choiceB: BranchChoice;
   facts: string[];
+  safety?: SafetyResult;
+  storyId?: string;
   language: string;
   onReset: () => void;
+  onTopicSelect?: (topic: string) => void;
 }
 
 // Apple-style frosted glass vocab sheet — slides up from the bottom
@@ -76,6 +89,11 @@ function DictionaryModal({
             });
             const data = await res.json();
             setFeedback(data);
+            if (data.correct) {
+              unlockAchievement("pronunciation_star");
+              const count = incrementCounter("correct_pronunciations");
+              if (count >= 3) unlockAchievement("pronunciation_trio");
+            }
           } catch {
             setFeedback({ correct: false, feedback: "Something went wrong. Try again!" });
           } finally {
@@ -400,8 +418,11 @@ export default function StoryDisplay({
   choiceA,
   choiceB,
   facts,
+  safety,
+  storyId,
   language,
   onReset,
+  onTopicSelect,
 }: StoryDisplayProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [chosenBranch, setChosenBranch] = useState<"none" | "A" | "B">("none");
@@ -409,6 +430,9 @@ export default function StoryDisplay({
   const [showAudio, setShowAudio] = useState(false);
   const [activeVocab, setActiveVocab] = useState<VocabWord | null>(null);
   const [highlightedWord, setHighlightedWord] = useState<{ word: string; charStart: number } | null>(null);
+  // Per-story tracking
+  const [sessionVocabCount, setSessionVocabCount] = useState(0);
+  const [visitedBranches, setVisitedBranches] = useState<Set<"A" | "B">>(new Set());
   const t = getTranslations(language);
 
   // Always build the full 10-page array so all dots render.
@@ -432,6 +456,13 @@ export default function StoryDisplay({
     setHighlightedWord(null);
   }, [currentPage]);
 
+  useEffect(() => {
+    if (isLast) {
+      unlockAchievement("bookworm");
+      if (facts.length > 0) unlockAchievement("fact_finder");
+    }
+  }, [isLast, facts.length]);
+
   const goNext = () => {
     if (needsChoice) {
       setShowChoiceScreen(true);
@@ -448,12 +479,19 @@ export default function StoryDisplay({
     setChosenBranch(choice);
     setShowChoiceScreen(false);
     setCurrentPage(branchPointIndex + 1);
+    setVisitedBranches((prev) => {
+      const next = new Set(prev);
+      next.add(choice);
+      if (next.size === 2) unlockAchievement("both_paths");
+      return next;
+    });
   };
 
   const handleTryOtherPath = () => {
     setChosenBranch("none");
     setShowChoiceScreen(false);
     setCurrentPage(branchPointIndex);
+    unlockAchievement("path_explorer");
   };
 
   // Determine if the next button should be disabled
@@ -474,6 +512,37 @@ export default function StoryDisplay({
       >
         {title}
       </h1>
+
+      {/* SafetyKit badge */}
+      {safety && (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div
+            className="font-pixel"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "5px 12px",
+              background: safety.safe
+                ? "linear-gradient(90deg, #0a3d1e, #164d2a)"
+                : "linear-gradient(90deg, #3d0a0a, #4d1616)",
+              border: `2px solid ${safety.safe ? "#2ECC71" : "#E74C3C"}`,
+              boxShadow: `0 0 8px ${safety.safe ? "rgba(46,204,113,0.3)" : "rgba(231,76,60,0.3)"}`,
+              fontSize: "0.6rem",
+              color: safety.safe ? "#7FE8A0" : "#FF9999",
+              letterSpacing: "0.08em",
+            }}
+          >
+            <span style={{ fontSize: "0.85rem" }}>{safety.safe ? "🛡️" : "⚠️"}</span>
+            {safety.safe
+              ? `CHILD SAFE · SCORE ${safety.score}/100`
+              : `REVIEW NEEDED · SCORE ${safety.score}/100`}
+            <span style={{ opacity: 0.6, fontSize: "0.5rem" }}>
+              {safety.provider === "safetykit" ? "· SAFETYKIT" : "· AI VERIFIED"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Page dots */}
       <div className="flex items-center justify-center gap-2 flex-wrap px-4">
@@ -583,7 +652,16 @@ export default function StoryDisplay({
               >
                 {/* Listen button — top right of page */}
                 <button
-                  onClick={() => setShowAudio((s) => !s)}
+                  onClick={() => {
+                    setShowAudio((s) => {
+                      if (!s) {
+                        unlockAchievement("listener");
+                        const pages = incrementCounter("audio_pages");
+                        if (pages >= 5) unlockAchievement("audio_fan");
+                      }
+                      return !s;
+                    });
+                  }}
                   className={`absolute top-4 right-4 text-xs px-3 py-1.5 rounded-full border transition active:scale-95 ${
                     showAudio
                       ? "border-sky-400 bg-sky-50 text-sky-700"
@@ -610,7 +688,19 @@ export default function StoryDisplay({
                   key={currentPage}
                   text={page.text}
                   vocabulary={page.vocabulary ?? []}
-                  onWordClick={setActiveVocab}
+                  onWordClick={(v) => {
+                    setActiveVocab(v);
+                    unlockAchievement("word_wizard");
+                    // Global vocab counter
+                    const total = incrementCounter("vocab_clicks");
+                    if (total >= 10) unlockAchievement("vocab_master");
+                    // Per-story vocab counter
+                    setSessionVocabCount((n) => {
+                      const next = n + 1;
+                      if (next >= 5) unlockAchievement("deep_reader");
+                      return next;
+                    });
+                  }}
                   highlightedWord={highlightedWord}
                 />
 
@@ -660,21 +750,13 @@ export default function StoryDisplay({
         />
       )}
 
-      {/* Did You Know? — last page */}
-      {isLast && facts.length > 0 && (
-        <div className="rounded-3xl bg-sky-50 border border-sky-200 p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-extrabold text-sky-800">{t.didYouKnow}</h2>
-          <ul className="flex flex-col gap-3">
-            {facts.map((fact, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full bg-sky-200 text-sky-700 text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-gray-700 text-sm leading-relaxed">{fact}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+
+      {/* Similar Stories — powered by Actian VectorAI */}
+      {isLast && onTopicSelect && (
+        <SimilarStories
+          storyTitle={title}
+          onTopicSelect={onTopicSelect}
+        />
       )}
 
       {/* End-of-story actions */}

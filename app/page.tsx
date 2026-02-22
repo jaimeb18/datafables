@@ -6,6 +6,12 @@ import StoryForm from "@/components/StoryForm";
 import StoryDisplay from "@/components/StoryDisplay";
 import GenreCard from "@/components/GenreCard";
 import { getTranslations } from "@/lib/translations";
+import {
+  unlockAchievement,
+  incrementCounter,
+  addToSet,
+  earnStoryCoins,
+} from "@/lib/achievements";
 
 interface VocabWord {
   word: string;
@@ -26,6 +32,14 @@ interface BranchChoice {
   pages: BookPage[];
 }
 
+interface SafetyResult {
+  safe: boolean;
+  score: number;
+  flags: string[];
+  provider: "safetykit" | "gemini_fallback";
+  decisionId?: string;
+}
+
 interface BookResult {
   title: string;
   branchPointIndex: number;
@@ -34,6 +48,8 @@ interface BookResult {
   choiceA: BranchChoice;
   choiceB: BranchChoice;
   facts: string[];
+  safety?: SafetyResult;
+  storyId?: string;
 }
 
 const GENRES = [
@@ -125,6 +141,40 @@ export default function Home() {
       const data = await res.json();
       setResult(data);
       setState("done");
+
+      // ── Core ──────────────────────────────────────────────────────────
+      unlockAchievement("first_story");
+      earnStoryCoins();
+
+      // ── Story count ───────────────────────────────────────────────────
+      const storyCount = incrementCounter("stories");
+      if (storyCount >= 5)  unlockAchievement("story_collector");
+      if (storyCount >= 10) unlockAchievement("story_marathon");
+
+      // ── Language ──────────────────────────────────────────────────────
+      if (lang !== "English") {
+        unlockAchievement("linguist");
+        const langCount = addToSet("languages_used", lang);
+        if (langCount >= 3) unlockAchievement("world_traveler");
+      }
+
+      // ── Genre-specific ────────────────────────────────────────────────
+      const genreMap: Record<string, string> = {
+        "Fantasy":            "fantasy_fan",
+        "Sci-Fi":             "sci_fi_fan",
+        "Mystery":            "mystery_fan",
+        "Historical Fiction": "history_fan",
+        "Poem":               "poet",
+        "Realistic Fiction":  "realist",
+      };
+      if (genreMap[topic]) unlockAchievement(genreMap[topic]);
+
+      // ── All-genres tracking ───────────────────────────────────────────
+      const GENRE_LIST = ["Fantasy", "Sci-Fi", "Mystery", "Historical Fiction", "Poem", "Realistic Fiction"];
+      if (GENRE_LIST.includes(topic)) {
+        const genreCount = addToSet("genres_used", topic);
+        if (genreCount >= 6) unlockAchievement("all_genres");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setState("idle");
@@ -141,6 +191,7 @@ export default function Home() {
   const handleGenreClick = (genre: string) => {
     setSelectedGenre((prev) => (prev === genre ? null : genre));
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    unlockAchievement("genre_picker");
   };
 
   const scrollToCreate = () => {
@@ -162,15 +213,22 @@ export default function Home() {
             choiceA={result.choiceA}
             choiceB={result.choiceB}
             facts={result.facts}
+            safety={result.safety}
+            storyId={result.storyId}
             language={language}
             onReset={handleReset}
+            onTopicSelect={(topic) => {
+              handleReset();
+              setPrefillTopic(topic);
+              setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+            }}
           />
         </main>
         <footer
           className="py-5 text-center font-pixel"
           style={{ fontSize: "0.8rem", color: "var(--pixel-mid)", letterSpacing: "0.05em" }}
         >
-          ♥ Powered by Gemini · ElevenLabs · Snowflake ♥
+          ♥ Powered by Gemini · ElevenLabs · Snowflake · SafetyKit · Actian ♥
         </footer>
       </div>
     );
@@ -412,11 +470,9 @@ export default function Home() {
 
             {state === "loading" && (
               <div className="flex flex-col items-center gap-3 py-4">
-                <div
-                  className="animate-bounce text-center"
-                  style={{ fontSize: "2.5rem" }}
-                >
-                  🔮
+                <div className="animate-bounce text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/magic-ball.png" alt="magic ball" style={{ width: "80px", height: "80px", imageRendering: "pixelated", margin: "0 auto" }} />
                 </div>
                 <p
                   className="text-sm text-center font-semibold"
@@ -440,7 +496,7 @@ export default function Home() {
           className="py-5 text-center font-pixel"
           style={{ fontSize: "0.8rem", color: "var(--pixel-mid)", letterSpacing: "0.05em" }}
         >
-          ♥ Powered by Gemini · ElevenLabs · Snowflake ♥
+          ♥ Powered by Gemini · ElevenLabs · Snowflake · SafetyKit · Actian ♥
         </footer>
       </section>
     </>

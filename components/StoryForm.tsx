@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getTranslations } from "@/lib/translations";
+import { unlockAchievement } from "@/lib/achievements";
+import { getOwnedItems, type ShopItem } from "@/lib/shop";
 
 interface StoryFormProps {
   onSubmit: (topic: string, ageGroup: string, language: string, characterDescription: string) => void;
@@ -110,6 +112,11 @@ const EMOJI: Record<string, string> = {
   "Sneakers": "👟", "Boots": "🥾", "Sandals": "🩴", "Rain boots": "🌧️", "Barefoot": "🦶",
   "Glasses": "👓", "Hat": "🎩", "Backpack": "🎒", "Scarf": "🧣",
   "Headband": "💆", "Cape": "🦸", "Bow tie": "🎀",
+  // Shop-unlocked accessories
+  "Sword": "⚔️", "Shield": "🛡️", "Wings": "🪽",
+  "Crown": "👑", "Wand": "🪄", "Dragon": "🐉",
+  // Shop-unlocked hair styles
+  "Undercut": "✂️", "Dreadlocks": "🌿", "Space Buns": "🪐", "Cornrows": "🪢",
 };
 
 interface CharacterTraits {
@@ -227,9 +234,16 @@ function getColorHex(label: string | null, options: { label: string; color: stri
 }
 
 // Chibi pixel art character preview — big round head, tiny body, like RPG sprites
-function CharacterPreview({ traits }: { traits: CharacterTraits }) {
+function CharacterPreview({
+  traits,
+  hairColorOptions,
+}: {
+  traits: CharacterTraits;
+  hairColorOptions: { label: string; color: string }[];
+}) {
   const skin = getColorHex(traits.skinTone, SKIN_TONES) ?? "#EDBB99";
-  const hair = getColorHex(traits.hairColor, HAIR_COLORS) ?? "#6B4226";
+  // Use full merged list so shop-unlocked colors resolve correctly
+  const hair = getColorHex(traits.hairColor, hairColorOptions) ?? "#6B4226";
   const eyes = getColorHex(traits.eyeColor, EYE_COLORS) ?? "#5B3A1A";
   const topCol = getColorHex(traits.topColor, TOP_COLORS) ?? "#2E86C1";
   // Bottom color varies by type
@@ -267,8 +281,13 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
   const isMohawk = hs === "Mohawk";
   const isPigtails = hs === "Pigtails";
   const isBob = hs === "Bob";
-  const isBraids = hs === "Braids";
-  const isAfro = hs === "Afro";
+  const isBraids    = hs === "Braids";
+  const isAfro      = hs === "Afro";
+  // Shop-unlocked styles
+  const isUndercut   = hs === "Undercut";
+  const isSpaceBuns  = hs === "Space Buns";
+  const isDreadlocks = hs === "Dreadlocks";
+  const isCornrows   = hs === "Cornrows";
 
   // Darker shade of hair for depth
   const hairDark = "#00000020";
@@ -343,6 +362,22 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
         {/* Cape behind body */}
         {traits.accessories.includes("Cape") && (
           <rect x={bodyX - 4} y={bodyY} width={bodyW + 8} height={bodyH + 14} fill="#8E44AD" opacity="0.6" rx="0" />
+        )}
+
+        {/* Wings behind body */}
+        {traits.accessories.includes("Wings") && (
+          <>
+            {/* Left wing */}
+            <rect x={bodyX - 16} y={bodyY}     width={14} height={6}  fill="#E8E8E8" />
+            <rect x={bodyX - 14} y={bodyY + 5} width={12} height={5}  fill="#D0D0D0" />
+            <rect x={bodyX - 16} y={bodyY}     width={14} height={1}  fill="white" />
+            <rect x={bodyX - 16} y={bodyY}     width={1}  height={10} fill="white" opacity="0.5" />
+            {/* Right wing */}
+            <rect x={bodyX + bodyW + 2} y={bodyY}     width={14} height={6}  fill="#E8E8E8" />
+            <rect x={bodyX + bodyW + 2} y={bodyY + 5} width={12} height={5}  fill="#D0D0D0" />
+            <rect x={bodyX + bodyW + 2} y={bodyY}     width={14} height={1}  fill="white" />
+            <rect x={bodyX + bodyW + 15} y={bodyY}    width={1}  height={10} fill="#C0C0C0" opacity="0.5" />
+          </>
         )}
 
         {/* Backpack behind body */}
@@ -444,6 +479,64 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
           <>
             <rect x={headX + 2} y={headY - 2} width={headW - 4} height={4} fill={hair} />
           </>
+        ) : isUndercut ? (
+          /* Undercut — tall volume on top, nearly shaved sides */
+          <>
+            <rect x={headX + 3} y={headY - 6} width={headW - 6} height={9} fill={hair} />
+            <rect x={headX} y={headY + 1} width={headW} height={3} fill={hair} />
+            {/* Shaved side fade */}
+            <rect x={headX} y={headY + 3} width={2} height={5} fill={hair} opacity="0.3" />
+            <rect x={headX + headW - 2} y={headY + 3} width={2} height={5} fill={hair} opacity="0.3" />
+          </>
+        ) : isSpaceBuns ? (
+          /* Space Buns — two circular buns on top */
+          <>
+            {/* Base cap */}
+            <rect x={headX + 2} y={headY - 1} width={headW - 4} height={4} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={2} fill={hair} />
+            {/* Left bun */}
+            <rect x={headX + 2}  y={headY - 8} width={8} height={8} fill={hair} />
+            <rect x={headX + 3}  y={headY - 9} width={6} height={2} fill={hair} />
+            {/* Right bun */}
+            <rect x={headX + headW - 10} y={headY - 8} width={8} height={8} fill={hair} />
+            <rect x={headX + headW - 9}  y={headY - 9} width={6} height={2} fill={hair} />
+            {/* Bun depth/shadow */}
+            <rect x={headX + 8}  y={headY - 4} width={2} height={4} fill={hairDark} opacity="0.25" />
+            <rect x={headX + headW - 10} y={headY - 4} width={2} height={4} fill={hairDark} opacity="0.25" />
+          </>
+        ) : isDreadlocks ? (
+          /* Dreadlocks — thick hanging locks */
+          <>
+            {/* Hair cap */}
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={5} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={2} fill={hair} />
+            {/* Hanging locks */}
+            <rect x={headX - 3} y={headY + 4} width={5} height={24} fill={hair} />
+            <rect x={headX + 5} y={headY + 4} width={4} height={26} fill={hair} />
+            <rect x={headX + 13} y={headY + 4} width={4} height={24} fill={hair} />
+            <rect x={headX + headW - 2} y={headY + 4} width={5} height={22} fill={hair} />
+            {/* Lock texture rings */}
+            <rect x={headX - 2} y={headY + 9}  width={3} height={1} fill={hairDark} opacity="0.4" />
+            <rect x={headX + 6} y={headY + 11} width={2} height={1} fill={hairDark} opacity="0.4" />
+            <rect x={headX + 14} y={headY + 10} width={2} height={1} fill={hairDark} opacity="0.4" />
+            <rect x={headX + headW - 1} y={headY + 8} width={3} height={1} fill={hairDark} opacity="0.4" />
+            <rect x={headX - 2} y={headY + 17} width={3} height={1} fill={hairDark} opacity="0.4" />
+            <rect x={headX + 6} y={headY + 19} width={2} height={1} fill={hairDark} opacity="0.4" />
+          </>
+        ) : isCornrows ? (
+          /* Cornrows — tight rows pulled back */
+          <>
+            <rect x={headX + 2} y={headY - 1} width={headW - 4} height={4} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={5} fill={hair} />
+            {/* Row stripe texture */}
+            <rect x={headX + 1} y={headY + 1} width={headW - 2} height={1} fill={hairDark} opacity="0.22" />
+            <rect x={headX + 1} y={headY + 3} width={headW - 2} height={1} fill={hairDark} opacity="0.22" />
+            <rect x={headX + 1} y={headY + 5} width={headW - 2} height={1} fill={hairDark} opacity="0.22" />
+            <rect x={headX + 1} y={headY + 7} width={headW - 2} height={1} fill={hairDark} opacity="0.22" />
+            {/* Tapered sides */}
+            <rect x={headX - 1} y={headY + 4} width={2} height={8} fill={hair} opacity="0.5" />
+            <rect x={headX + headW - 1} y={headY + 4} width={2} height={8} fill={hair} opacity="0.5" />
+          </>
         ) : (
           /* Default short straight / long straight */
           <>
@@ -501,6 +594,27 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
         {/* ═══ HEADBAND ═══ */}
         {traits.accessories.includes("Headband") && (
           <rect x={headX} y={headY + 3} width={headW} height={2} fill="#EC7063" />
+        )}
+
+        {/* ═══ CROWN ═══ */}
+        {traits.accessories.includes("Crown") && (
+          <>
+            {/* Crown base */}
+            <rect x={headX + 2}  y={headY - 5}  width={headW - 4} height={4} fill="#EAA624" />
+            <rect x={headX + 2}  y={headY - 5}  width={headW - 4} height={1} fill="#F2D091" />
+            <rect x={headX + headW - 4} y={headY - 4} width={2} height={3} fill="#8B6010" />
+            {/* Crown points */}
+            <rect x={headX + 4}  y={headY - 9}  width={5} height={5} fill="#EAA624" />
+            <rect x={headX + 4}  y={headY - 9}  width={2} height={2} fill="#F2D091" />
+            <rect x={headX + 12} y={headY - 10} width={4} height={6} fill="#EAA624" />
+            <rect x={headX + 12} y={headY - 10} width={2} height={2} fill="#F2D091" />
+            <rect x={headX + 19} y={headY - 9}  width={5} height={5} fill="#EAA624" />
+            <rect x={headX + 19} y={headY - 9}  width={2} height={2} fill="#F2D091" />
+            {/* Gem stones */}
+            <rect x={headX + 13} y={headY - 9}  width={2} height={2} fill="#E87777" />
+            <rect x={headX + 5}  y={headY - 8}  width={2} height={2} fill="#7BBFFF" />
+            <rect x={headX + 20} y={headY - 8}  width={2} height={2} fill="#8BC34A" />
+          </>
         )}
 
         {/* ═══ NECK ═══ */}
@@ -648,6 +762,87 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
           <>
             <rect x={bodyX + 2} y={bodyY + 1} width={1} height={bodyH - 2} fill="#E67E22" opacity="0.7" />
             <rect x={bodyX + bodyW - 3} y={bodyY + 1} width={1} height={bodyH - 2} fill="#E67E22" opacity="0.7" />
+          </>
+        )}
+
+        {/* ═══ SWORD (right hand) ═══ */}
+        {traits.accessories.includes("Sword") && (
+          <>
+            {/* Blade */}
+            <rect x={bodyX + bodyW + 5} y={bodyY - 6} width={3} height={20} fill="#C8D0E0" />
+            <rect x={bodyX + bodyW + 5} y={bodyY - 6} width={1} height={16} fill="white" opacity="0.55" />
+            <rect x={bodyX + bodyW + 7} y={bodyY - 2} width={1} height={12} fill="#9090A8" opacity="0.5" />
+            {/* Crossguard */}
+            <rect x={bodyX + bodyW + 2} y={bodyY + 8}  width={9} height={2} fill="#EAA624" />
+            <rect x={bodyX + bodyW + 2} y={bodyY + 8}  width={9} height={1} fill="#F2D091" />
+            {/* Handle */}
+            <rect x={bodyX + bodyW + 5} y={bodyY + 10} width={3} height={5} fill="#8B5E3C" />
+            <rect x={bodyX + bodyW + 5} y={bodyY + 10} width={1} height={5} fill="#A07040" />
+            {/* Pommel */}
+            <rect x={bodyX + bodyW + 4} y={bodyY + 15} width={5} height={3} fill="#EAA624" />
+            <rect x={bodyX + bodyW + 4} y={bodyY + 15} width={5} height={1} fill="#F2D091" />
+          </>
+        )}
+
+        {/* ═══ SHIELD (left arm) ═══ */}
+        {traits.accessories.includes("Shield") && (
+          <>
+            {/* Shield body */}
+            <rect x={bodyX - 12} y={bodyY + 2}  width={9} height={11} fill="#4A90D9" />
+            <rect x={bodyX - 12} y={bodyY + 2}  width={9} height={1}  fill="#7BBFFF" />
+            <rect x={bodyX - 12} y={bodyY + 2}  width={1} height={11} fill="#7BBFFF" />
+            <rect x={bodyX - 4}  y={bodyY + 3}  width={1} height={10} fill="#2255AA" />
+            <rect x={bodyX - 12} y={bodyY + 12} width={9} height={1}  fill="#2255AA" />
+            {/* Cross emblem */}
+            <rect x={bodyX - 9}  y={bodyY + 4}  width={3} height={7}  fill="#EAA624" />
+            <rect x={bodyX - 11} y={bodyY + 7}  width={7} height={3}  fill="#EAA624" />
+            <rect x={bodyX - 9}  y={bodyY + 4}  width={1} height={1}  fill="#F2D091" />
+          </>
+        )}
+
+        {/* ═══ WAND (right hand) ═══ */}
+        {traits.accessories.includes("Wand") && (
+          <>
+            {/* Wand stick */}
+            <rect x={bodyX + bodyW + 4} y={bodyY + 2} width={2} height={12} fill="#3B2314" />
+            <rect x={bodyX + bodyW + 4} y={bodyY + 2} width={1} height={12} fill="#6B4A30" />
+            {/* Star tip */}
+            <rect x={bodyX + bodyW + 3} y={bodyY + 1}  width={4} height={1} fill="#EAA624" />
+            <rect x={bodyX + bodyW + 4} y={bodyY - 2}  width={2} height={4} fill="#EAA624" />
+            <rect x={bodyX + bodyW + 3} y={bodyY}       width={4} height={2} fill="#F2D091" />
+            <rect x={bodyX + bodyW + 4} y={bodyY - 1}  width={2} height={1} fill="white" opacity="0.7" />
+            {/* Sparkles */}
+            <rect x={bodyX + bodyW + 8} y={bodyY - 3}  width={1} height={1} fill="#EAA624" />
+            <rect x={bodyX + bodyW + 2} y={bodyY - 4}  width={1} height={1} fill="#F2D091" />
+            <rect x={bodyX + bodyW + 9} y={bodyY + 1}  width={1} height={1} fill="#8BC34A" />
+          </>
+        )}
+
+        {/* ═══ DRAGON PET (small, bottom-left) ═══ */}
+        {traits.accessories.includes("Dragon") && (
+          <>
+            {/* Wing */}
+            <rect x={0} y={bodyY + 1}  width={9} height={8}  fill="#1a9a50" opacity="0.85" />
+            <rect x={0} y={bodyY + 1}  width={9} height={1}  fill="#2ECC71" />
+            <rect x={0} y={bodyY + 1}  width={1} height={8}  fill="#2ECC71" opacity="0.5" />
+            {/* Body */}
+            <rect x={0} y={bodyY + 8}  width={13} height={7} fill="#27AE60" />
+            <rect x={0} y={bodyY + 8}  width={13} height={1} fill="#2ECC71" />
+            <rect x={11} y={bodyY + 9} width={2}  height={5} fill="#1a9a50" />
+            {/* Head */}
+            <rect x={3} y={bodyY + 3}  width={10} height={6} fill="#2ECC71" />
+            <rect x={2} y={bodyY + 4}  width={12} height={4} fill="#2ECC71" />
+            {/* Eye */}
+            <rect x={9} y={bodyY + 5}  width={2} height={2}  fill="#F4D03F" />
+            <rect x={10} y={bodyY + 5} width={1} height={1}  fill="white" />
+            {/* Snout */}
+            <rect x={12} y={bodyY + 6} width={3} height={2}  fill="#27AE60" />
+            {/* Flame */}
+            <rect x={14} y={bodyY + 5} width={2} height={2}  fill="#E67E22" />
+            <rect x={15} y={bodyY + 4} width={1} height={2}  fill="#F4D03F" />
+            {/* Tail */}
+            <rect x={11} y={bodyY + 13} width={5} height={2} fill="#27AE60" />
+            <rect x={15} y={bodyY + 14} width={3} height={2} fill="#1a9a50" />
           </>
         )}
 
@@ -837,6 +1032,35 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
   const [showDesigner, setShowDesigner] = useState(false);
   const [traits, setTraits] = useState<CharacterTraits>({ ...INITIAL_TRAITS });
 
+  // Shop unlocked items — loaded after mount, refreshed on purchase
+  const [ownedShopItems, setOwnedShopItems] = useState<ShopItem[]>([]);
+  useEffect(() => {
+    setOwnedShopItems(getOwnedItems());
+    const refresh = () => setOwnedShopItems(getOwnedItems());
+    window.addEventListener("datafables:shop_purchase", refresh);
+    return () => window.removeEventListener("datafables:shop_purchase", refresh);
+  }, []);
+
+  // Merge base lists with shop-unlocked items
+  const allHairColors = [
+    ...HAIR_COLORS,
+    ...ownedShopItems
+      .filter((i) => i.category === "hair_color")
+      .map((i) => ({ label: i.value, color: i.color ?? "#FF69B4" })),
+  ];
+  const allHairStyles = [
+    ...HAIR_STYLES,
+    ...ownedShopItems
+      .filter((i) => i.category === "hair_style")
+      .map((i) => i.value),
+  ];
+  const allAccessories = [
+    ...ACCESSORIES,
+    ...ownedShopItems
+      .filter((i) => i.category === "accessory")
+      .map((i) => i.value),
+  ];
+
   const updateTrait = <K extends keyof CharacterTraits>(key: K, value: CharacterTraits[K]) => {
     setTraits((prev) => ({ ...prev, [key]: value }));
   };
@@ -892,7 +1116,12 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
         <button
           type="button"
           disabled={loading}
-          onClick={() => setShowDesigner((s) => !s)}
+          onClick={() => {
+            setShowDesigner((s) => {
+              if (!s) unlockAchievement("character_designer");
+              return !s;
+            });
+          }}
           className="flex items-center gap-2 font-pixel disabled:opacity-60 transition"
           style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
         >
@@ -909,7 +1138,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
           >
             {/* Character Preview */}
             <div className="flex flex-col items-center gap-1">
-              <CharacterPreview traits={traits} />
+              <CharacterPreview traits={traits} hairColorOptions={allHairColors} />
               <span className="font-pixel" style={{ fontSize: "0.65rem", color: "var(--pixel-mid)", letterSpacing: "0.1em" }}>{t.preview}</span>
             </div>
             <div style={{ height: "2px", background: "var(--pixel-mid)", opacity: 0.3 }} />
@@ -960,7 +1189,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
             <div className="flex flex-col gap-2">
               <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.hairColor}</span>
               <ColorSwatch
-                options={HAIR_COLORS}
+                options={allHairColors}
                 selected={traits.hairColor}
                 onSelect={(v) => updateTrait("hairColor", v)}
                 disabled={loading}
@@ -972,7 +1201,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
               <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.hairStyle}</span>
               <StyledSelect
                 value={traits.hairStyle}
-                options={HAIR_STYLES}
+                options={allHairStyles}
                 onChange={(v) => updateTrait("hairStyle", v)}
                 placeholder={t.pickHairStyle}
                 disabled={loading}
@@ -1041,7 +1270,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
             <div className="flex flex-col gap-2">
               <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.accessories}</span>
               <div className="flex flex-wrap gap-2">
-                {ACCESSORIES.map((acc) => (
+                {allAccessories.map((acc) => (
                   <button
                     key={acc}
                     type="button"
