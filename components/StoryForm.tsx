@@ -7,6 +7,8 @@ interface StoryFormProps {
   onSubmit: (topic: string, ageGroup: string, language: string, characterDescription: string) => void;
   loading: boolean;
   prefillTopic?: string;
+  language: string;
+  onLanguageChange: (lang: string) => void;
 }
 
 const LANGUAGES = [
@@ -816,8 +818,7 @@ const INITIAL_TRAITS: CharacterTraits = {
   accessories: [],
 };
 
-export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: StoryFormProps) {
-  const [language, setLanguage] = useState("English");
+export default function StoryForm({ onSubmit, loading, prefillTopic = "", language, onLanguageChange }: StoryFormProps) {
   const t = getTranslations(language);
 
   const AGE_GROUPS = [
@@ -832,6 +833,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
     if (prefillTopic) setTopic(prefillTopic);
   }, [prefillTopic]);
 
+  const [selectedAge, setSelectedAge] = useState<string | null>(null);
   const [showDesigner, setShowDesigner] = useState(false);
   const [traits, setTraits] = useState<CharacterTraits>({ ...INITIAL_TRAITS });
 
@@ -897,8 +899,8 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
           <span className={`transition-transform duration-200 ${showDesigner ? "rotate-90" : ""}`}>
             &#9654;
           </span>
-          <span>🎨 Design Your Character</span>
-          <span className="font-pixel" style={{ fontSize: "0.7rem", fontWeight: 400, color: "var(--pixel-mid)", marginLeft: "4px" }}>(Optional)</span>
+          <span>{t.designYourCharacter}</span>
+          <span className="font-pixel" style={{ fontSize: "0.7rem", fontWeight: 400, color: "var(--pixel-mid)", marginLeft: "4px" }}>{t.optional}</span>
         </button>
 
         {showDesigner && (
@@ -908,13 +910,13 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
             {/* Character Preview */}
             <div className="flex flex-col items-center gap-1">
               <CharacterPreview traits={traits} />
-              <span className="font-pixel" style={{ fontSize: "0.65rem", color: "var(--pixel-mid)", letterSpacing: "0.1em" }}>PREVIEW</span>
+              <span className="font-pixel" style={{ fontSize: "0.65rem", color: "var(--pixel-mid)", letterSpacing: "0.1em" }}>{t.preview}</span>
             </div>
             <div style={{ height: "2px", background: "var(--pixel-mid)", opacity: 0.3 }} />
 
             {/* Gender */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Gender</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.gender}</span>
               <div className="flex gap-2">
                 {GENDERS.map((g) => (
                   <button
@@ -937,7 +939,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
                       color: "var(--pixel-dark)",
                     }}
                   >
-                    <span className="font-pixel" style={{ fontSize: "0.8rem" }}>{g.label}</span>
+                    <span className="font-pixel" style={{ fontSize: "0.8rem" }}>{g.label === "Boy" ? t.boy : t.girl}</span>
                   </button>
                 ))}
               </div>
@@ -945,7 +947,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
             {/* Skin Tone */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Skin Tone</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.skinTone}</span>
               <ColorSwatch
                 options={SKIN_TONES}
                 selected={traits.skinTone}
@@ -956,7 +958,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
             {/* Hair Color */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Hair Color</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.hairColor}</span>
               <ColorSwatch
                 options={HAIR_COLORS}
                 selected={traits.hairColor}
@@ -967,19 +969,19 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
             {/* Hair Style */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Hair Style</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.hairStyle}</span>
               <StyledSelect
                 value={traits.hairStyle}
                 options={HAIR_STYLES}
                 onChange={(v) => updateTrait("hairStyle", v)}
-                placeholder="✨ Pick a hair style..."
+                placeholder={t.pickHairStyle}
                 disabled={loading}
               />
             </div>
 
             {/* Eye Color */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Eye Color</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.eyeColor}</span>
               <ColorSwatch
                 options={EYE_COLORS}
                 selected={traits.eyeColor}
@@ -990,17 +992,17 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
             {/* Clothing Top + Color */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Top</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.clothingTop}</span>
               <StyledSelect
                 value={traits.top}
                 options={TOPS}
                 onChange={(v) => updateTrait("top", v)}
-                placeholder="👕 Pick a top..."
+                placeholder={t.pickTop}
                 disabled={loading}
               />
               {traits.top && (
                 <div className="flex flex-col gap-1">
-                  <span className="font-pixel" style={{ fontSize: "0.7rem", color: "var(--pixel-mid)" }}>Top Color</span>
+                  <span className="font-pixel" style={{ fontSize: "0.7rem", color: "var(--pixel-mid)" }}>{t.topColor}</span>
                   <ColorSwatch
                     options={TOP_COLORS}
                     selected={traits.topColor}
@@ -1013,31 +1015,31 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
             {/* Clothing Bottom */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Bottom</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.clothingBottom}</span>
               <StyledSelect
                 value={traits.bottom}
                 options={BOTTOMS}
                 onChange={(v) => updateTrait("bottom", v)}
-                placeholder="👖 Pick bottoms..."
+                placeholder={t.pickBottom}
                 disabled={loading}
               />
             </div>
 
             {/* Shoes */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Shoes</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.shoes}</span>
               <StyledSelect
                 value={traits.shoes}
                 options={SHOES}
                 onChange={(v) => updateTrait("shoes", v)}
-                placeholder="👟 Pick shoes..."
+                placeholder={t.pickShoes}
                 disabled={loading}
               />
             </div>
 
             {/* Accessories (multi-select toggle buttons) */}
             <div className="flex flex-col gap-2">
-              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>Accessories</span>
+              <span className="font-pixel" style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--pixel-dark)" }}>{t.accessories}</span>
               <div className="flex flex-wrap gap-2">
                 {ACCESSORIES.map((acc) => (
                   <button
@@ -1082,40 +1084,40 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
               className="self-end font-pixel transition disabled:opacity-60"
               style={{ fontSize: "0.7rem", color: "var(--pixel-mid)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}
             >
-              Reset character
+              {t.resetCharacter}
             </button>
           </div>
         )}
       </div>
 
       {/* Language selector */}
-      <div className="flex flex-col gap-3">
-        <span
-          className="font-pixel"
-          style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
+      <div className="flex flex-col gap-4">
+        <h3
+          className="font-pixel text-center"
+          style={{ fontSize: "1.3rem", color: "var(--pixel-dark)", fontWeight: 700, letterSpacing: "0.1em" }}
         >
-          {t.languageLabel}
-        </span>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {LANGUAGES.map((lang) => (
+          ✦ {t.languageLabel} ✦
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {LANGUAGES.map((lang, i) => (
             <button
               key={lang.value}
               type="button"
               disabled={loading}
-              onClick={() => setLanguage(lang.value)}
-              className="flex items-center gap-2 px-3 py-2.5 text-sm font-semibold disabled:opacity-60 transition-transform active:scale-95"
+              onClick={() => onLanguageChange(lang.value)}
+              className={`flex items-center gap-3 px-6 py-5 font-semibold disabled:opacity-60 transition-transform active:scale-95${i === LANGUAGES.length - 1 && LANGUAGES.length % 3 === 1 ? " sm:col-start-2" : ""}`}
               style={{
                 background: language === lang.value ? "var(--pixel-card-alt)" : "#EAE0DF",
-                border: `3px solid ${language === lang.value ? "var(--pixel-dark)" : "var(--pixel-mid)"}`,
-                borderRadius: "10px",
+                border: "3px solid var(--pixel-dark)",
+                borderRadius: "12px",
                 boxShadow: language === lang.value
                   ? "3px 3px 0 var(--pixel-dark)"
-                  : "2px 2px 0 var(--pixel-mid)",
+                  : "2px 2px 0 var(--pixel-dark)",
                 color: "var(--pixel-dark)",
               }}
             >
-              <span className="text-lg">{lang.flag}</span>
-              <span className="text-xs">{lang.value}</span>
+              <span className="text-2xl">{lang.flag}</span>
+              <span className="font-pixel" style={{ fontSize: "0.75rem" }}>{lang.value}</span>
             </button>
           ))}
         </div>
@@ -1123,12 +1125,12 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
 
       {/* Age group selector */}
       <div className="flex flex-col gap-3">
-        <span
-          className="font-pixel"
-          style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
+        <h3
+          className="font-pixel text-center"
+          style={{ fontSize: "1.3rem", color: "var(--pixel-dark)", fontWeight: 700, letterSpacing: "0.1em" }}
         >
-          {t.readingLevel}
-        </span>
+          ✦ {t.readingLevel} ✦
+        </h3>
         <div className="grid grid-cols-3 gap-3">
           {AGE_GROUPS.map((group) => (
             <label key={group.id} className="cursor-pointer group">
@@ -1136,17 +1138,20 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
                 type="radio"
                 name="ageGroup"
                 value={group.id}
-                defaultChecked={group.id === "8-10"}
+                checked={selectedAge === group.id}
+                onChange={() => setSelectedAge(group.id)}
                 disabled={loading}
                 className="sr-only peer"
               />
               <div
-                className="flex flex-col items-center gap-1 py-4 px-2 text-center transition peer-checked:scale-95"
+                className="flex flex-col items-center gap-1 py-6 px-3 text-center transition active:scale-95"
                 style={{
-                  background: "#EAE0DF",
-                  border: "3px solid var(--pixel-mid)",
+                  background: selectedAge === group.id ? "var(--pixel-card-alt)" : "#EAE0DF",
+                  border: "3px solid var(--pixel-dark)",
                   borderRadius: "12px",
-                  boxShadow: "3px 3px 0 var(--pixel-mid)",
+                  boxShadow: selectedAge === group.id
+                    ? "3px 3px 0 var(--pixel-dark)"
+                    : "2px 2px 0 var(--pixel-dark)",
                 }}
               >
                 <span className="text-3xl">{group.emoji}</span>

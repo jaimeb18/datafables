@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import StoryForm from "@/components/StoryForm";
 import StoryDisplay from "@/components/StoryDisplay";
 import GenreCard from "@/components/GenreCard";
+import { getTranslations } from "@/lib/translations";
 
 interface VocabWord {
   word: string;
@@ -97,12 +98,14 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("English");
   const [prefillTopic, setPrefillTopic] = useState<string>("");
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const section2Ref = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
+  const t = getTranslations(language);
+
   const handleSubmit = async (topic: string, ageGroup: string, lang: string, characterDescription: string) => {
-    setLanguage(lang);
-    const language = lang;
+    const effectiveTopic = selectedGenre ? `${selectedGenre}: ${topic}` : topic;
     setState("loading");
     setError(null);
     setResult(null);
@@ -111,7 +114,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, ageGroup, language, characterDescription }),
+        body: JSON.stringify({ topic: effectiveTopic, ageGroup, language: lang, characterDescription }),
       });
 
       if (!res.ok) {
@@ -136,7 +139,7 @@ export default function Home() {
   };
 
   const handleGenreClick = (genre: string) => {
-    setPrefillTopic(genre);
+    setSelectedGenre((prev) => (prev === genre ? null : genre));
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -265,7 +268,7 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            AI stories that teach
+            {t.heroTagline}
           </p>
 
           {/* Body copy */}
@@ -278,8 +281,9 @@ export default function Home() {
               maxWidth: "480px",
             }}
           >
-            Pick a genre or tell us what you&apos;re curious about —
-            we&apos;ll craft a magical, educational story just for you!
+            {t.heroLine1}
+            <br />
+            {t.heroLine2}
           </p>
 
           {/* Scroll-down indicator */}
@@ -331,7 +335,7 @@ export default function Home() {
                 letterSpacing: "0.12em",
               }}
             >
-              ✦ CUSTOMIZATION ✦
+              ✦ {t.customizationHeading} ✦
             </h2>
             <p
               style={{
@@ -341,7 +345,7 @@ export default function Home() {
                 letterSpacing: "0.03em",
               }}
             >
-              Pick a genre, choose your settings, and create your story
+              {t.genresSubtitle}
             </p>
           </header>
 
@@ -351,14 +355,14 @@ export default function Home() {
               className="font-pixel"
               style={{ fontSize: "1.6rem", color: "var(--pixel-dark)", fontWeight: 700, letterSpacing: "0.1em" }}
             >
-              ★ GENRES ★
+              ★ {t.genresHeading} ★
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 w-full">
               {GENRES.map((g) => (
                 <GenreCard
                   key={g.genre}
-                  genre={g.genre}
-                  description={g.description}
+                  genre={t.genres[g.genre]?.name ?? g.genre}
+                  description={t.genres[g.genre]?.description ?? g.description}
                   sprite={
                     <Image
                       src={g.image}
@@ -375,6 +379,7 @@ export default function Home() {
                     />
                   }
                   onClick={() => handleGenreClick(g.genre)}
+                  selected={selectedGenre === g.genre}
                 />
               ))}
             </div>
@@ -401,6 +406,8 @@ export default function Home() {
               onSubmit={handleSubmit}
               loading={state === "loading"}
               prefillTopic={prefillTopic}
+              language={language}
+              onLanguageChange={setLanguage}
             />
 
             {state === "loading" && (
