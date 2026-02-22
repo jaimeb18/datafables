@@ -138,11 +138,17 @@ export async function generateBranchingStory(
   ageGroup: string,
   facts: string[],
   language: string,
-  characterDescription: string = ""
+  characterDescription: string = "",
+  practiceWords: string[] = []
 ): Promise<BranchingStoryResult> {
   const factsText =
     facts.length > 0
       ? `Weave these real facts naturally into the story across different pages and branches:\n${facts.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
+      : "";
+
+  const practiceText =
+    practiceWords.length > 0
+      ? `\nPRACTICE WORDS (from Actian VectorAI DB — words the child previously struggled to pronounce):\nNaturally weave these words into the story so the child gets extra practice: ${practiceWords.join(", ")}.\nInclude at least 2-3 of them in the story text AND in the vocabulary sections. Only include ones that fit naturally — do NOT force them.`
       : "";
 
   const ageInstructions: Record<string, string> = {
@@ -152,7 +158,7 @@ export async function generateBranchingStory(
   };
 
   const characterText = characterDescription
-    ? `\nMAIN CHARACTER:\n${characterDescription}\nGive the main character a creative, unique name that fits the story's setting and culture. Do NOT use the name "Leo". Vary the name every time — pick from a wide range of diverse names from different cultures.`
+    ? `\nMAIN CHARACTER:\n${characterDescription}\nIMPORTANT: If the user's topic/prompt mentions a character name, use that EXACT name for the main character. Only generate a name if no name is provided in the topic. For any OTHER side characters, give them creative, diverse names — do NOT reuse "Leo".`
     : `\nMAIN CHARACTER:\nCreate an original child character with a creative, unique name. Do NOT use the name "Leo". Vary the name every time — pick from a wide range of diverse names from different cultures (e.g., Amara, Kai, Priya, Tomás, Nia, Soren, Yuki, Zara, etc.).`;
 
   const prompt = `You are a master children's storyteller creating an interactive "Choose Your Own Adventure" illustrated book.
@@ -161,6 +167,7 @@ Create a branching 10-page children's story in ${language} for children aged ${a
 
 Reading level: ${ageInstructions[ageGroup] || ageInstructions["8-10"]}
 ${characterText}
+${practiceText}
 
 ${factsText}
 
@@ -179,7 +186,7 @@ For each branch, provide a short choice label (8-15 words) describing the path a
 
 Rules:
 - Each page has exactly 30-50 words (brief, like a real picture book page)
-- The main character must match the description provided above
+- The main character must match the description provided above. If the user's topic includes a name, that is the main character's name — use it exactly
 - End each branch on an uplifting or curious note
 - For each page, identify 0-2 vocabulary words that might be challenging for the age group
   - The word MUST appear verbatim in that page's text

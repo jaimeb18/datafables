@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+  vectorai-db:
+    image: williamimoh/actian-vectorai-db:1.0b
+    ports:
+      - "50051:50051"
+    restart: unless-stopped
+
+  vectorai-bridge:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - VECTORAI_HOST=vectorai-db:50051
+    depends_on:
+      - vectorai-db
+    restart: unless-stopped

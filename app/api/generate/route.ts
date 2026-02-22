@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBranchingStory, generateCharacterSheet, generateImage, StoryPage } from "@/lib/gemini";
 import { getFactsForTopic } from "@/lib/snowflake";
+import { getPracticeWords } from "@/lib/vectorai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,9 +11,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing topic or ageGroup" }, { status: 400 });
     }
 
-    const facts = await getFactsForTopic(topic, ageGroup);
+    // Fetch educational facts and practice words (from VectorAI DB) in parallel
+    const [facts, practiceWords] = await Promise.all([
+      getFactsForTopic(topic, ageGroup),
+      getPracticeWords(topic, language),
+    ]);
     console.log(`[facts] topic="${topic}" ageGroup="${ageGroup}" → ${facts.length} facts from Snowflake`);
-    const story = await generateBranchingStory(topic, ageGroup, facts, language, characterDescription);
+    console.log(`[vectorai] → ${practiceWords.length} practice words from VectorAI DB`);
+
+    const practiceWordsList = practiceWords.map((w) => w.word);
+    const story = await generateBranchingStory(topic, ageGroup, facts, language, characterDescription, practiceWordsList);
 
     // Collect all pages that need images
     const allPages: StoryPage[] = [

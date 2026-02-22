@@ -40,10 +40,12 @@ function DictionaryModal({
   vocab,
   onClose,
   gotIt,
+  language,
 }: {
   vocab: VocabWord;
   onClose: () => void;
   gotIt: string;
+  language: string;
 }) {
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<{ correct: boolean; feedback: string } | null>(null);
@@ -70,7 +72,7 @@ function DictionaryModal({
             const res = await fetch("/api/pronounce", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ word: vocab.word, audioBase64: base64, mimeType }),
+              body: JSON.stringify({ word: vocab.word, audioBase64: base64, mimeType, definition: vocab.definition, language }),
             });
             const data = await res.json();
             setFeedback(data);
@@ -462,7 +464,7 @@ export default function StoryDisplay({
   return (
     <div className="w-full max-w-6xl flex flex-col gap-6">
       {activeVocab && (
-        <DictionaryModal vocab={activeVocab} onClose={() => setActiveVocab(null)} gotIt={t.gotIt} />
+        <DictionaryModal vocab={activeVocab} onClose={() => setActiveVocab(null)} gotIt={t.gotIt} language={language} />
       )}
 
       {/* Title */}

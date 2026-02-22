@@ -12,16 +12,16 @@ interface StoryFormProps {
 }
 
 const LANGUAGES = [
-  { value: "English", flag: "🇬🇧" },
-  { value: "Spanish", flag: "🇪🇸" },
-  { value: "French", flag: "🇫🇷" },
-  { value: "German", flag: "🇩🇪" },
-  { value: "Portuguese", flag: "🇧🇷" },
-  { value: "Italian", flag: "🇮🇹" },
-  { value: "Chinese (Simplified)", flag: "🇨🇳" },
-  { value: "Japanese", flag: "🇯🇵" },
-  { value: "Arabic", flag: "🇸🇦" },
-  { value: "Hindi", flag: "🇮🇳" },
+  { value: "English", label: "English", flag: "🇬🇧" },
+  { value: "Spanish", label: "Español", flag: "🇪🇸" },
+  { value: "French", label: "Français", flag: "🇫🇷" },
+  { value: "German", label: "Deutsch", flag: "🇩🇪" },
+  { value: "Portuguese", label: "Português", flag: "🇧🇷" },
+  { value: "Italian", label: "Italiano", flag: "🇮🇹" },
+  { value: "Chinese (Simplified)", label: "中文", flag: "🇨🇳" },
+  { value: "Japanese", label: "日本語", flag: "🇯🇵" },
+  { value: "Arabic", label: "العربية", flag: "🇸🇦" },
+  { value: "Hindi", label: "हिन्दी", flag: "🇮🇳" },
 ];
 
 // Character designer options
@@ -1117,7 +1117,7 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
               }}
             >
               <span className="text-2xl">{lang.flag}</span>
-              <span className="font-pixel" style={{ fontSize: "0.75rem" }}>{lang.value}</span>
+              <span className="font-pixel" style={{ fontSize: "0.75rem" }}>{lang.label}</span>
             </button>
           ))}
         </div>
