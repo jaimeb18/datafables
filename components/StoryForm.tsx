@@ -194,7 +194,9 @@ function ColorSwatch({
             title={opt.label + (isShop ? " ★ Shop Item" : "")}
             className={`relative w-9 h-9 transition-all active:scale-90 disabled:opacity-60${isNew ? " animate-pixel-glow" : ""}`}
             style={{
-              backgroundColor: opt.color,
+              background: opt.label === "Rainbow"
+                ? "linear-gradient(135deg, #FF69B4, #A855F7, #4A90D9, #27AE60, #F59E0B)"
+                : opt.color,
               border: selected === opt.label
                 ? "3px solid var(--pixel-dark)"
                 : isShop
@@ -287,7 +289,8 @@ function CharacterPreview({
 }) {
   const skin = getColorHex(traits.skinTone, SKIN_TONES) ?? "#EDBB99";
   // Use full merged list so shop-unlocked colors resolve correctly
-  const hair = getColorHex(traits.hairColor, hairColorOptions) ?? "#6B4226";
+  const isRainbow = traits.hairColor === "Rainbow";
+  const hair = isRainbow ? "url(#rainbowHair)" : (getColorHex(traits.hairColor, hairColorOptions) ?? "#6B4226");
   const eyes = getColorHex(traits.eyeColor, EYE_COLORS) ?? "#5B3A1A";
   const topCol = getColorHex(traits.topColor, TOP_COLORS) ?? "#2E86C1";
   // Bottom color varies by type
@@ -358,6 +361,18 @@ function CharacterPreview({
         style={{ imageRendering: "pixelated" }}
         shapeRendering="crispEdges"
       >
+        {/* Rainbow hair gradient definition */}
+        {isRainbow && (
+          <defs>
+            <linearGradient id="rainbowHair" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FF69B4" />
+              <stop offset="25%" stopColor="#A855F7" />
+              <stop offset="50%" stopColor="#4A90D9" />
+              <stop offset="75%" stopColor="#27AE60" />
+              <stop offset="100%" stopColor="#F59E0B" />
+            </linearGradient>
+          </defs>
+        )}
         {/* ═══ HAIR BEHIND HEAD (long styles) ═══ */}
         {isLong && !isPigtails && !isBraids && !isAfro && (
           <>

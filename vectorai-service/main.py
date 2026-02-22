@@ -25,10 +25,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 genai.configure(api_key=GEMINI_API_KEY)
 
 
-def get_client() -> CortexClient:
-    return CortexClient(VECTORAI_HOST)
-
-
 def get_embedding(text: str) -> list[float]:
     result = genai.embed_content(
         model="models/text-embedding-004",
@@ -46,11 +42,11 @@ def word_id(word: str, language: str) -> int:
 def startup():
     for attempt in range(5):
         try:
-            client = get_client()
-            if not client.has_collection(COLLECTION):
-                client.create_collection(COLLECTION, DIMENSION, DistanceMetric.COSINE)
-            print(f"Connected to VectorAI DB, collection '{COLLECTION}' ready.")
-            return
+            with CortexClient(VECTORAI_HOST) as client:
+                if not client.has_collection(COLLECTION):
+                    client.create_collection(COLLECTION, DIMENSION, DistanceMetric.COSINE)
+                print(f"Connected to VectorAI DB, collection '{COLLECTION}' ready.")
+                return
         except Exception as e:
             print(f"VectorAI DB not ready (attempt {attempt+1}/5): {e}")
             time.sleep(3)
@@ -76,23 +72,23 @@ def store_word(req: StoreWordRequest):
         text_for_embedding = f"{req.word}: {req.definition}" if req.definition else req.word
         embedding = get_embedding(text_for_embedding)
 
-        client = get_client()
-        if not client.has_collection(COLLECTION):
-            client.create_collection(COLLECTION, DIMENSION, DistanceMetric.COSINE)
+        with CortexClient(VECTORAI_HOST) as client:
+            if not client.has_collection(COLLECTION):
+                client.create_collection(COLLECTION, DIMENSION, DistanceMetric.COSINE)
 
-        wid = word_id(req.word, req.language)
-        client.upsert(
-            COLLECTION,
-            id=wid,
-            vector=embedding,
-            payload={
-                "word": req.word,
-                "definition": req.definition,
-                "language": req.language,
-                "age_group": req.age_group,
-                "stored_at": time.time(),
-            },
-        )
+            wid = word_id(req.word, req.language)
+            client.upsert(
+                COLLECTION,
+                id=wid,
+                vector=embedding,
+                payload={
+                    "word": req.word,
+                    "definition": req.definition,
+                    "language": req.language,
+                    "age_group": req.age_group,
+                    "stored_at": time.time(),
+                },
+            )
         return {"status": "stored", "word": req.word, "id": wid}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -101,27 +97,27 @@ def store_word(req: StoreWordRequest):
 @app.post("/get-practice-words")
 def get_practice_words(req: PracticeWordsRequest):
     try:
-        client = get_client()
-        if not client.has_collection(COLLECTION):
-            return []
+        with CortexClient(VECTORAI_HOST) as client:
+            if not client.has_collection(COLLECTION):
+                return []
 
-        count = client.count(COLLECTION)
-        if count == 0:
-            return []
+            count = client.count(COLLECTION)
+            if count == 0:
+                return []
 
-        embedding = get_embedding(req.topic)
-        top_k = min(req.top_k, count)
-        results = client.search(COLLECTION, query=embedding, top_k=top_k)
+            embedding = get_embedding(req.topic)
+            top_k = min(req.top_k, count)
+            results = client.search(COLLECTION, query=embedding, top_k=top_k)
 
-        words = []
-        for r in results:
-            if r.payload.get("language", "").lower() == req.language.lower():
-                words.append({
-                    "word": r.payload["word"],
-                    "definition": r.payload.get("definition", ""),
-                    "score": r.score,
-                })
-        return words
+            words = []
+            for r in results:
+                if r.payload.get("language", "").lower() == req.language.lower():
+                    words.append({
+                        "word": r.payload["word"],
+                        "definition": r.payload.get("definition", ""),
+                        "score": r.score,
+                    })
+            return words
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -129,9 +125,9 @@ def get_practice_words(req: PracticeWordsRequest):
 @app.get("/health")
 def health():
     try:
-        client = get_client()
-        has = client.has_collection(COLLECTION)
-        count = client.count(COLLECTION) if has else 0
-        return {"status": "healthy", "collection_exists": has, "word_count": count}
+        with CortexClient(VECTORAI_HOST) as client:
+            has = client.has_collection(COLLECTION)
+            count = client.count(COLLECTION) if has else 0
+            return {"status": "healthy", "collection_exists": has, "word_count": count}
     except Exception as e:
         return {"status": "degraded", "error": str(e)}

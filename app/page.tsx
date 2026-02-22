@@ -118,6 +118,8 @@ export default function Home() {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   // Words the user struggled with in the previous story (for showing origin indicators)
   const [previousStruggledWords, setPreviousStruggledWords] = useState<string[]>([]);
+  // Whether the user opted in to practice words in their next story
+  const [wantsPractice, setWantsPractice] = useState(false);
   const section2Ref = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -133,7 +135,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: effectiveTopic, ageGroup, language: lang, characterDescription }),
+        body: JSON.stringify({ topic: effectiveTopic, ageGroup, language: lang, characterDescription, includePracticeWords: wantsPractice }),
       });
 
       if (!res.ok) {
@@ -223,6 +225,7 @@ export default function Home() {
             previousStruggledWords={previousStruggledWords}
             onReset={handleReset}
             onStruggledWordsChange={(words) => setPreviousStruggledWords(words)}
+            onPracticeOptIn={(optedIn) => setWantsPractice(optedIn)}
             onTopicSelect={(topic) => {
               handleReset();
               setPrefillTopic(topic);

@@ -7,7 +7,10 @@ RUN pip install --no-cache-dir requests && \
     python -c "import requests; r = requests.get('https://github.com/hackmamba-io/actian-vectorAI-db-beta/raw/main/actiancortex-0.1.0b1-py3-none-any.whl'); open('actiancortex-0.1.0b1-py3-none-any.whl','wb').write(r.content)"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir numpy grpcio-tools && \
+    pip install --no-cache-dir --no-deps actiancortex-0.1.0b1-py3-none-any.whl && \
+    pip install --no-cache-dir "protobuf>=5.31.1"
 
 COPY main.py .
 

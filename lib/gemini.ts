@@ -318,12 +318,19 @@ export async function checkPronunciation(
             },
           },
           {
-            text: `A child is trying to pronounce the word "${word}". Listen to the audio and tell me if they said it correctly or close enough.
+            text: `A child is trying to pronounce the word "${word}". Listen to the audio carefully and evaluate if they pronounced the word correctly.
 
-Be very encouraging and kind — this is for young children learning to read.
+IMPORTANT RULES FOR EVALUATION:
+- The child must clearly say the word "${word}" — not a different word, not silence, not mumbling.
+- If they say a completely different word, mark it INCORRECT.
+- If they mispronounce key syllables (e.g., wrong vowel sounds, missing syllables, wrong emphasis), mark it INCORRECT.
+- Only mark CORRECT if the pronunciation is genuinely accurate or very close (minor accent differences are OK).
+- If the audio is silent, unclear, or contains no speech, mark it INCORRECT.
+
+Be encouraging and kind in your feedback — this is for young children learning to read.
 Keep your response to 1-2 short sentences max.
-If they said it correctly or close enough, celebrate them.
-If they didn't quite get it, gently guide them with a simple tip (like breaking it into syllables).
+If correct, celebrate them briefly.
+If incorrect, gently explain what to fix (e.g., break it into syllables, correct a specific sound).
 
 Respond ONLY with valid JSON, no markdown:
 {"correct": true or false, "feedback": "Your short encouraging message here"}`,

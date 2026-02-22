@@ -7,7 +7,7 @@ import { storeStory } from "@/lib/actian";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, ageGroup, language = "English", characterDescription = "" } = await req.json();
+    const { topic, ageGroup, language = "English", characterDescription = "", includePracticeWords = true } = await req.json();
 
     if (!topic || !ageGroup) {
       return NextResponse.json({ error: "Missing topic or ageGroup" }, { status: 400 });
@@ -16,10 +16,10 @@ export async function POST(req: NextRequest) {
     // Fetch educational facts and practice words (from VectorAI DB) in parallel
     const [facts, practiceWords] = await Promise.all([
       getFactsForTopic(topic, ageGroup),
-      getPracticeWords(topic, language),
+      includePracticeWords ? getPracticeWords(topic, language) : Promise.resolve([]),
     ]);
     console.log(`[facts] topic="${topic}" ageGroup="${ageGroup}" → ${facts.length} facts from Snowflake`);
-    console.log(`[vectorai] → ${practiceWords.length} practice words from VectorAI DB`);
+    console.log(`[vectorai] → ${practiceWords.length} practice words from VectorAI DB (includePractice=${includePracticeWords})`);
 
     const practiceWordsList = practiceWords.map((w) => w.word);
     const story = await generateBranchingStory(topic, ageGroup, facts, language, characterDescription, practiceWordsList);

@@ -48,6 +48,7 @@ interface StoryDisplayProps {
   previousStruggledWords?: string[];
   onReset: () => void;
   onStruggledWordsChange?: (words: string[]) => void;
+  onPracticeOptIn?: (optedIn: boolean) => void;
   onTopicSelect?: (topic: string) => void;
 }
 
@@ -452,6 +453,7 @@ export default function StoryDisplay({
   previousStruggledWords = [],
   onReset,
   onStruggledWordsChange,
+  onPracticeOptIn,
   onTopicSelect,
 }: StoryDisplayProps) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -858,8 +860,8 @@ export default function StoryDisplay({
         />
       )}
 
-      {/* Vocabulary Summary — shows after reading when user practiced pronunciation */}
-      {isLast && (succeededWords.length > 0 || struggledWords.length > 0) && (
+      {/* Vocabulary Summary — always shows on last page */}
+      {isLast && (
         <div
           className="rounded-2xl overflow-hidden"
           style={{
@@ -932,6 +934,49 @@ export default function StoryDisplay({
               </div>
             )}
 
+            {/* Unpracticed words — words from the story the user hasn't tried yet */}
+            {(() => {
+              const allVocab = activePages.flatMap((p) => p.vocabulary ?? []);
+              const practiced = new Set([
+                ...succeededWords.map((w) => w.word.toLowerCase()),
+                ...struggledWords.map((w) => w.word.toLowerCase()),
+              ]);
+              const seen = new Set<string>();
+              const unique = allVocab.filter((v) => {
+                const key = v.word.toLowerCase();
+                if (practiced.has(key) || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              if (unique.length === 0) return null;
+              return (
+                <div>
+                  <p className="font-semibold text-sm mb-2" style={{ color: "#6b7280" }}>
+                    {succeededWords.length === 0 && struggledWords.length === 0
+                      ? "Tap any word below to practice pronunciation!"
+                      : "Words You Haven't Tried Yet"}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {unique.map((v) => (
+                      <span
+                        key={v.word}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition hover:brightness-95 active:scale-95"
+                        style={{ background: "#f0f5ff", color: "#3a7bd5", border: "1.5px solid #bfdbfe" }}
+                        onClick={() => setActiveVocab(v)}
+                      >
+                        {v.word}
+                      </span>
+                    ))}
+                  </div>
+                  {succeededWords.length === 0 && struggledWords.length === 0 && (
+                    <p className="text-[11px] mt-2" style={{ color: "#9ca3af" }}>
+                      Tap a word above to open the dictionary and record your pronunciation
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* VectorAI opt-in prompt */}
             {struggledWords.length > 0 && practiceOptIn === null && (
               <div
@@ -943,14 +988,14 @@ export default function StoryDisplay({
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setPracticeOptIn(true)}
+                    onClick={() => { setPracticeOptIn(true); onPracticeOptIn?.(true); }}
                     className="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95"
                     style={{ background: "#5B9EFF", color: "white", border: "none" }}
                   >
                     Yes, help me learn!
                   </button>
                   <button
-                    onClick={() => setPracticeOptIn(false)}
+                    onClick={() => { setPracticeOptIn(false); onPracticeOptIn?.(false); }}
                     className="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95"
                     style={{ background: "#e5e7eb", color: "#6b7280", border: "none" }}
                   >
