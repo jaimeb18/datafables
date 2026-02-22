@@ -3,7 +3,7 @@
 # DataFables
 AI-powered personalized storybook platform for children, combining Gemini generative AI with ElevenLabs narration and real-time safety moderation.
 
-Built for kids aged 2–10. Every story is unique, illustrated, narrated, and safe.
+Every story is unique, illustrated, narrated, and safe.
 
 ![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js) ![Gemini](https://img.shields.io/badge/Gemini-4285F4?logo=google) ![ElevenLabs](https://img.shields.io/badge/ElevenLabs-000?logo=elevenlabs) ![Snowflake](https://img.shields.io/badge/Snowflake-29B5E8?logo=snowflake) ![Hacklytics 2026](https://img.shields.io/badge/Hacklytics-2026-purple)
 
