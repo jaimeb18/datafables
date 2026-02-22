@@ -1,0 +1,6 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sentence-transformers==3.0.1
+pydantic==2.9.2
+# Actian VectorAI DB Python client — install the .whl manually:
+# pip install actiancortex-0.1.0b1-py3-none-any.whl

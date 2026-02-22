@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Nunito, Pixelify_Sans, Silkscreen } from "next/font/google";
 import "./globals.css";
+import AchievementToast from "@/components/AchievementToast";
+import AchievementPanel from "@/components/AchievementPanel";
+import ShopPanel from "@/components/ShopPanel";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -22,7 +25,7 @@ const silkscreen = Silkscreen({
 
 export const metadata: Metadata = {
   title: "DataFables",
-  description: "AI-powered educational stories for kids — Gemini + ElevenLabs + Snowflake",
+  description: "AI-powered educational stories for kids — Gemini + ElevenLabs + Snowflake + SafetyKit + Actian",
 };
 
 export default function RootLayout({
@@ -32,7 +35,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${nunito.variable} ${pixelifySans.variable} ${silkscreen.variable} font-nunito antialiased`}>{children}</body>
+      <body className={`${nunito.variable} ${pixelifySans.variable} ${silkscreen.variable} font-nunito antialiased`}>
+        {children}
+        <AchievementPanel />
+        <ShopPanel />
+        <AchievementToast />
+      </body>
     </html>
   );
 }

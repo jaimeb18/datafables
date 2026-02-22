@@ -1,0 +1,8 @@
+version: "3.8"
+services:
+  actian-vectorai:
+    image: williamimoh/actian-vectorai-db:1.0b
+    container_name: actian_vectorai
+    ports:
+      - "50051:50051"
+    restart: unless-stopped
