@@ -87,7 +87,7 @@ export default function AchievementPanel() {
         onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/trophy.png" alt="trophy" style={{ width: "36px", height: "36px", imageRendering: "pixelated" }} />
+        <img src="/trophy.png" alt="trophy" style={{ width: "78px", height: "78px", imageRendering: "pixelated" }} />
         <span
           className="font-pixel"
           style={{
@@ -152,7 +152,7 @@ export default function AchievementPanel() {
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/trophy.png" alt="trophy" style={{ width: "32px", height: "32px", imageRendering: "pixelated" }} />
+                <img src="/trophy.png" alt="trophy" style={{ width: "72px", height: "72px", imageRendering: "pixelated" }} />
                 <h2 className="font-pixel" style={{ fontSize: "1.1rem", color: "#1a1428", letterSpacing: "0.1em", fontWeight: 700 }}>
                   ACHIEVEMENTS
                 </h2>

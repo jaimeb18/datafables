@@ -748,22 +748,6 @@ export default function StoryDisplay({
         />
       )}
 
-      {/* Did You Know? — last page */}
-      {isLast && facts.length > 0 && (
-        <div className="rounded-3xl bg-sky-50 border border-sky-200 p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-extrabold text-sky-800">{t.didYouKnow}</h2>
-          <ul className="flex flex-col gap-3">
-            {facts.map((fact, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full bg-sky-200 text-sky-700 text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-gray-700 text-sm leading-relaxed">{fact}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* Similar Stories — powered by Actian VectorAI */}
       {isLast && onTopicSelect && (
