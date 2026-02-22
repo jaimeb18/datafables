@@ -81,9 +81,8 @@ export async function getFactsForTopic(
     );
     if (fuzzy.length > 0) return fuzzy.map((r) => r.FACT);
 
-    // 3. Semantic category mapping — finds ALL relevant categories and blends facts from each.
-    //    e.g. "ocean animals" → ["ocean", "animals"] → returns a mix of both.
-    const categories = getBroadCategories(topic);
+    // 3. Ask Snowflake Cortex to semantically map the topic to stored categories (RAG retrieval)
+    const categories = await getCortexCategories(conn, topic);
     if (categories.length > 0) {
       // Build: WHERE (TOPIC LIKE cat1 OR TOPIC LIKE cat2 ...) AND age_filter
       const orClauses = categories.map(() => `LOWER(TOPIC) LIKE ?`).join(" OR ");
@@ -108,6 +107,41 @@ export async function getFactsForTopic(
     return getMockFacts(topic);
   } finally {
     if (conn) destroyConn(conn);
+  }
+}
+
+// Uses Snowflake Cortex (mistral-7b) to semantically map a free-form topic
+// to the stored categories in STORY_FACTS. Falls back to manual mapping if Cortex fails.
+async function getCortexCategories(
+  conn: snowflake.Connection,
+  topic: string
+): Promise<string[]> {
+  try {
+    const prompt =
+      `A children's story app has facts stored under these categories: ` +
+      `animals, space, science, history, math, geography, weather, plants, music, sports, computers, food, dinosaurs, volcanoes, art, mythology, ocean. ` +
+      `The user wants a story about: "${topic}". ` +
+      `Which 1-3 categories from the list above are most relevant? ` +
+      `Reply with ONLY a comma-separated list of category names. No explanation, no punctuation, just the names.`;
+
+    const rows = await query<{ RESULT: string }>(
+      conn,
+      `SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-7b', ?) AS RESULT`,
+      [prompt]
+    );
+
+    const raw = rows[0]?.RESULT ?? "";
+    const categories = raw
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim().replace(/[^a-z]/g, ""))
+      .filter((s) => s.length > 0);
+
+    console.log(`[cortex] topic="${topic}" → categories: ${categories.join(", ")}`);
+    return categories;
+  } catch (err) {
+    console.warn("[cortex] Cortex unavailable, falling back to manual mapping:", err);
+    return getBroadCategories(topic);
   }
 }
 
