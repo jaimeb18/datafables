@@ -50,6 +50,7 @@ interface BookResult {
   facts: string[];
   safety?: SafetyResult;
   storyId?: string;
+  practiceWords?: string[];
 }
 
 const GENRES = [
@@ -115,6 +116,8 @@ export default function Home() {
   const [language, setLanguage] = useState("English");
   const [prefillTopic, setPrefillTopic] = useState<string>("");
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  // Words the user struggled with in the previous story (for showing origin indicators)
+  const [previousStruggledWords, setPreviousStruggledWords] = useState<string[]>([]);
   const section2Ref = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -216,7 +219,10 @@ export default function Home() {
             safety={result.safety}
             storyId={result.storyId}
             language={language}
+            practiceWords={result.practiceWords ?? []}
+            previousStruggledWords={previousStruggledWords}
             onReset={handleReset}
+            onStruggledWordsChange={(words) => setPreviousStruggledWords(words)}
             onTopicSelect={(topic) => {
               handleReset();
               setPrefillTopic(topic);

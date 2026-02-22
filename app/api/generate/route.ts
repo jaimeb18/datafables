@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
       facts,
       safety: safetyResult,
       storyId,
+      practiceWords: practiceWordsList,
     });
   } catch (err) {
     console.error("Generate error:", err);

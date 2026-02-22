@@ -44,7 +44,10 @@ interface StoryDisplayProps {
   safety?: SafetyResult;
   storyId?: string;
   language: string;
+  practiceWords?: string[];
+  previousStruggledWords?: string[];
   onReset: () => void;
+  onStruggledWordsChange?: (words: string[]) => void;
   onTopicSelect?: (topic: string) => void;
 }
 
@@ -54,11 +57,15 @@ function DictionaryModal({
   onClose,
   gotIt,
   language,
+  onPronunciationResult,
+  practiceOrigin,
 }: {
   vocab: VocabWord;
   onClose: () => void;
   gotIt: string;
   language: string;
+  onPronunciationResult?: (word: string, definition: string, correct: boolean) => void;
+  practiceOrigin?: string;
 }) {
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<{ correct: boolean; feedback: string } | null>(null);
@@ -89,6 +96,7 @@ function DictionaryModal({
             });
             const data = await res.json();
             setFeedback(data);
+            onPronunciationResult?.(vocab.word, vocab.definition, data.correct);
             if (data.correct) {
               unlockAchievement("pronunciation_star");
               const count = incrementCounter("correct_pronunciations");
@@ -168,6 +176,17 @@ function DictionaryModal({
 
           {/* Divider */}
           <div style={{ height: "1.5px", background: "#D6E4FF", borderRadius: "2px" }} />
+
+          {/* Practice word origin badge */}
+          {practiceOrigin && (
+            <div
+              className="self-start flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
+              style={{ background: "#FFF7ED", color: "#C2410C", border: "1.5px solid #FDBA74" }}
+            >
+              <span>🔁</span>
+              <span>Practice word — you struggled with &ldquo;{practiceOrigin}&rdquo; last story</span>
+            </div>
+          )}
 
           {/* Part of speech */}
           {vocab.partOfSpeech && (
@@ -250,11 +269,13 @@ function PageText({
   vocabulary,
   onWordClick,
   highlightedWord,
+  practiceWordOrigins,
 }: {
   text: string;
   vocabulary: VocabWord[];
   onWordClick: (vocab: VocabWord) => void;
   highlightedWord?: { word: string; charStart: number } | null;
+  practiceWordOrigins?: Map<string, string>;
 }) {
   // Build a list of character ranges to highlight, sorted by start position.
   type Range = { start: number; end: number; vocab?: VocabWord; spoken?: boolean };
@@ -312,13 +333,19 @@ function PageText({
     }
     const content = text.slice(r.start, r.end);
     if (r.vocab) {
+      const isPracticeWord = practiceWordOrigins?.has(r.vocab.word.toLowerCase());
       segments.push(
         <span
           key={`v${r.start}`}
-          className="underline decoration-[#1a73e8] decoration-[2px] underline-offset-2 cursor-pointer font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors"
+          className={`underline decoration-[2px] underline-offset-2 cursor-pointer font-bold transition-colors ${
+            isPracticeWord
+              ? "decoration-[#C2410C] text-[#C2410C] hover:text-[#9A3412]"
+              : "decoration-[#1a73e8] text-[#1a73e8] hover:text-[#1557b0]"
+          }`}
           style={r.spoken ? { background: "rgba(255, 220, 50, 0.55)", borderRadius: "3px", padding: "0 2px" } : undefined}
           onClick={() => onWordClick(r.vocab!)}
-        >{content}</span>
+          title={isPracticeWord ? `Practice word from your last story` : undefined}
+        >{content}{isPracticeWord && <span className="text-[10px] align-super ml-0.5" style={{ color: "#C2410C" }}>🔁</span>}</span>
       );
     } else if (r.spoken) {
       segments.push(
@@ -421,7 +448,10 @@ export default function StoryDisplay({
   safety,
   storyId,
   language,
+  practiceWords = [],
+  previousStruggledWords = [],
   onReset,
+  onStruggledWordsChange,
   onTopicSelect,
 }: StoryDisplayProps) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -433,6 +463,44 @@ export default function StoryDisplay({
   // Per-story tracking
   const [sessionVocabCount, setSessionVocabCount] = useState(0);
   const [visitedBranches, setVisitedBranches] = useState<Set<"A" | "B">>(new Set());
+  // Pronunciation tracking for end-of-story summary
+  const [succeededWords, setSucceededWords] = useState<{ word: string; definition: string }[]>([]);
+  const [struggledWords, setStruggledWords] = useState<{ word: string; definition: string }[]>([]);
+  const [practiceOptIn, setPracticeOptIn] = useState<boolean | null>(null);
+
+  // Build a map: practice word (lowercased) → the previous struggled word it came from
+  const practiceWordOrigins = useMemo(() => {
+    const map = new Map<string, string>();
+    if (practiceWords.length === 0 || previousStruggledWords.length === 0) return map;
+    for (const pw of practiceWords) {
+      const pwLower = pw.toLowerCase();
+      // Find the matching struggled word (exact or case-insensitive match)
+      const match = previousStruggledWords.find(
+        (sw) => sw.toLowerCase() === pwLower
+      );
+      if (match) {
+        map.set(pwLower, match);
+      }
+    }
+    return map;
+  }, [practiceWords, previousStruggledWords]);
+
+  // Report struggled words up to parent whenever they change
+  const onStruggledWordsChangeRef = useRef(onStruggledWordsChange);
+  onStruggledWordsChangeRef.current = onStruggledWordsChange;
+  useEffect(() => {
+    onStruggledWordsChangeRef.current?.(struggledWords.map((w) => w.word));
+  }, [struggledWords]);
+
+  const handlePronunciationResult = (word: string, definition: string, correct: boolean) => {
+    if (correct) {
+      setSucceededWords((prev) => prev.some((w) => w.word === word) ? prev : [...prev, { word, definition }]);
+      // Remove from struggled if they got it right on retry
+      setStruggledWords((prev) => prev.filter((w) => w.word !== word));
+    } else {
+      setStruggledWords((prev) => prev.some((w) => w.word === word) ? prev : [...prev, { word, definition }]);
+    }
+  };
   const t = getTranslations(language);
 
   // Always build the full 10-page array so all dots render.
@@ -458,10 +526,14 @@ export default function StoryDisplay({
 
   useEffect(() => {
     if (isLast) {
-      unlockAchievement("bookworm");
-      if (facts.length > 0) unlockAchievement("fact_finder");
+      // Defer to avoid updating AchievementPanel during StoryDisplay render
+      setTimeout(() => {
+        unlockAchievement("bookworm");
+        if (facts.length > 0) unlockAchievement("fact_finder");
+        if (visitedBranches.size === 2) unlockAchievement("both_paths");
+      }, 0);
     }
-  }, [isLast, facts.length]);
+  }, [isLast, facts.length, visitedBranches.size]);
 
   const goNext = () => {
     if (needsChoice) {
@@ -482,7 +554,6 @@ export default function StoryDisplay({
     setVisitedBranches((prev) => {
       const next = new Set(prev);
       next.add(choice);
-      if (next.size === 2) unlockAchievement("both_paths");
       return next;
     });
   };
@@ -502,7 +573,14 @@ export default function StoryDisplay({
   return (
     <div className="w-full max-w-6xl flex flex-col gap-6">
       {activeVocab && (
-        <DictionaryModal vocab={activeVocab} onClose={() => setActiveVocab(null)} gotIt={t.gotIt} language={language} />
+        <DictionaryModal
+          vocab={activeVocab}
+          onClose={() => setActiveVocab(null)}
+          gotIt={t.gotIt}
+          language={language}
+          onPronunciationResult={handlePronunciationResult}
+          practiceOrigin={practiceWordOrigins.get(activeVocab.word.toLowerCase())}
+        />
       )}
 
       {/* Title */}
@@ -541,6 +619,26 @@ export default function StoryDisplay({
               {safety.provider === "safetykit" ? "· SAFETYKIT" : "· AI VERIFIED"}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Practice words banner */}
+      {practiceWordOrigins.size > 0 && (
+        <div
+          className="rounded-xl px-4 py-3 mx-4"
+          style={{ background: "#FFF7ED", border: "1.5px solid #FDBA74" }}
+        >
+          <p className="text-xs font-semibold text-center" style={{ color: "#9A3412" }}>
+            🔁 This story includes words you struggled with last time:{" "}
+            {Array.from(practiceWordOrigins.values()).map((w, i, arr) => (
+              <span key={w}>
+                <strong>{w}</strong>{i < arr.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </p>
+          <p className="text-[10px] text-center mt-1" style={{ color: "#C2410C" }}>
+            Look for orange words with 🔁 — tap them to practice!
+          </p>
         </div>
       )}
 
@@ -702,6 +800,7 @@ export default function StoryDisplay({
                     });
                   }}
                   highlightedWord={highlightedWord}
+                  practiceWordOrigins={practiceWordOrigins}
                 />
 
                 {page.vocabulary && page.vocabulary.length > 0 && (
@@ -757,6 +856,122 @@ export default function StoryDisplay({
           storyTitle={title}
           onTopicSelect={onTopicSelect}
         />
+      )}
+
+      {/* Vocabulary Summary — shows after reading when user practiced pronunciation */}
+      {isLast && (succeededWords.length > 0 || struggledWords.length > 0) && (
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: "linear-gradient(135deg, #EEF4FF 0%, #FFF8F0 100%)",
+            border: "2px solid #D6E4FF",
+            boxShadow: "0 4px 16px rgba(91,158,255,0.1)",
+          }}
+        >
+          <div style={{ background: "linear-gradient(90deg, #5B9EFF 0%, #7BB8FF 100%)", padding: "12px 20px" }}>
+            <h3 className="font-pixel text-white text-center" style={{ fontSize: "1rem", letterSpacing: "0.08em" }}>
+              Your Vocabulary Report
+            </h3>
+          </div>
+
+          <div className="px-5 py-5 flex flex-col gap-4">
+            {/* Succeeded words */}
+            {succeededWords.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-2" style={{ color: "#16a34a" }}>
+                  Words You Nailed
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {succeededWords.map((w) => {
+                    const origin = practiceWordOrigins.get(w.word.toLowerCase());
+                    return (
+                      <span
+                        key={w.word}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold"
+                        style={origin
+                          ? { background: "#FFF7ED", color: "#15803d", border: "1.5px solid #86efac", position: "relative" as const }
+                          : { background: "#dcfce7", color: "#15803d", border: "1.5px solid #86efac" }
+                        }
+                      >
+                        {origin && <span className="mr-1">🔁</span>}{w.word}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Struggled words */}
+            {struggledWords.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-2" style={{ color: "#dc2626" }}>
+                  Words to Practice
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {struggledWords.map((w) => {
+                    const origin = practiceWordOrigins.get(w.word.toLowerCase());
+                    return (
+                      <span
+                        key={w.word}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold"
+                        style={origin
+                          ? { background: "#FFF7ED", color: "#9A3412", border: "1.5px solid #FDBA74" }
+                          : { background: "#fef2f2", color: "#b91c1c", border: "1.5px solid #fca5a5" }
+                        }
+                      >
+                        {origin && <span className="mr-1">🔁</span>}{w.word}
+                        {origin && (
+                          <span className="text-[10px] font-normal ml-1 opacity-80">
+                            (from last story)
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* VectorAI opt-in prompt */}
+            {struggledWords.length > 0 && practiceOptIn === null && (
+              <div
+                className="rounded-xl p-4 mt-1"
+                style={{ background: "#f0f5ff", border: "1.5px solid #bfdbfe" }}
+              >
+                <p className="text-sm font-semibold mb-3" style={{ color: "#1e3a5f" }}>
+                  Want your next story to include words like these so you can practice them again?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPracticeOptIn(true)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95"
+                    style={{ background: "#5B9EFF", color: "white", border: "none" }}
+                  >
+                    Yes, help me learn!
+                  </button>
+                  <button
+                    onClick={() => setPracticeOptIn(false)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold transition active:scale-95"
+                    style={{ background: "#e5e7eb", color: "#6b7280", border: "none" }}
+                  >
+                    No thanks
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {practiceOptIn === true && (
+              <p className="text-sm font-semibold text-center py-1" style={{ color: "#5B9EFF" }}>
+                Great! Your next story will weave in these words for extra practice.
+              </p>
+            )}
+            {practiceOptIn === false && (
+              <p className="text-sm text-center py-1" style={{ color: "#9ca3af" }}>
+                No worries! Your next story will have fresh new vocabulary.
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* End-of-story actions */}

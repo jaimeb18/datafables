@@ -1117,10 +1117,8 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "", langua
           type="button"
           disabled={loading}
           onClick={() => {
-            setShowDesigner((s) => {
-              if (!s) unlockAchievement("character_designer");
-              return !s;
-            });
+            if (!showDesigner) unlockAchievement("character_designer");
+            setShowDesigner((s) => !s);
           }}
           className="flex items-center gap-2 font-pixel disabled:opacity-60 transition"
           style={{ fontSize: "1rem", fontWeight: 700, color: "var(--pixel-dark)", letterSpacing: "0.02em" }}
