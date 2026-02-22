@@ -208,17 +208,17 @@ function getColorHex(label: string | null, options: { label: string; color: stri
   return options.find((o) => o.label === label)?.color ?? null;
 }
 
-// Pixel art character preview — all shapes are blocky rectangles on a 4px grid
+// Chibi pixel art character preview — big round head, tiny body, like RPG sprites
 function CharacterPreview({ traits }: { traits: CharacterTraits }) {
   const skin = getColorHex(traits.skinTone, SKIN_TONES) ?? "#EDBB99";
   const hair = getColorHex(traits.hairColor, HAIR_COLORS) ?? "#6B4226";
   const eyes = getColorHex(traits.eyeColor, EYE_COLORS) ?? "#5B3A1A";
   const topCol = getColorHex(traits.topColor, TOP_COLORS) ?? "#2E86C1";
   const bottomCol = traits.bottom === "Skirt" ? "#8E44AD" : "#2C3E50";
-  const shoeCol = "#555";
+  const shoeCol = "#4A4A4A";
   const isGirl = traits.gender === "Girl";
-  const isBoy = traits.gender === "Boy";
   const outline = "#383659";
+  const skinShade = "#00000018"; // subtle shadow overlay
 
   const hs = traits.hairStyle ?? "";
   const isLong = hs.includes("Long") || hs === "Braids" || hs === "Pigtails";
@@ -228,192 +228,364 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
   const isBun = hs === "Bun";
   const isMohawk = hs === "Mohawk";
   const isPigtails = hs === "Pigtails";
+  const isBob = hs === "Bob";
+  const isBraids = hs === "Braids";
+  const isAfro = hs === "Afro";
 
-  // Grid unit = 4px, canvas = 96x144
+  // Darker shade of hair for depth
+  const hairDark = "#00000020";
+
+  // Head dimensions: rounded oval, centered at x=32, top at y=8
+  // Head spans roughly x:18-46, y:8-30 (28w x 22h)
+  const headX = 18;
+  const headW = 28;
+  const headY = 10;
+
+  // Body starts at y=32
+  const bodyY = 33;
+  const bodyX = 22;
+  const bodyW = 20;
+  const bodyH = 12;
+
   return (
     <div className="flex justify-center py-2">
       <svg
-        width="128"
-        height="192"
-        viewBox="0 0 96 144"
+        width="160"
+        height="160"
+        viewBox="0 0 64 64"
         xmlns="http://www.w3.org/2000/svg"
         style={{ imageRendering: "pixelated" }}
         shapeRendering="crispEdges"
       >
-        {/* Hair behind head (long hair) */}
-        {isLong && !isPigtails && (
-          <rect x="20" y="20" width="56" height="52" fill={hair} />
+        {/* ═══ HAIR BEHIND HEAD (long styles) ═══ */}
+        {isLong && !isPigtails && !isBraids && !isAfro && (
+          <>
+            <rect x={headX - 1} y={headY + 4} width={headW + 2} height={24} fill={hair} />
+            <rect x={headX} y={headY + 22} width={headW} height={6} fill={hair} />
+          </>
         )}
         {isPigtails && (
           <>
-            <rect x="12" y="24" width="12" height="40" fill={hair} />
-            <rect x="72" y="24" width="12" height="40" fill={hair} />
+            {/* Two hanging pigtail strips */}
+            <rect x={headX - 4} y={headY + 6} width={4} height={22} fill={hair} />
+            <rect x={headX + headW} y={headY + 6} width={4} height={22} fill={hair} />
+            {/* Small bows */}
+            <rect x={headX - 5} y={headY + 5} width={6} height={2} fill="#EC7063" />
+            <rect x={headX + headW - 1} y={headY + 5} width={6} height={2} fill="#EC7063" />
+          </>
+        )}
+        {isBraids && (
+          <>
+            {/* Two thin braids hanging down */}
+            <rect x={headX + 2} y={headY + 4} width={3} height={28} fill={hair} />
+            <rect x={headX + headW - 5} y={headY + 4} width={3} height={28} fill={hair} />
+            {/* Braid texture */}
+            <rect x={headX + 2} y={headY + 10} width={3} height={1} fill={hairDark} />
+            <rect x={headX + 2} y={headY + 14} width={3} height={1} fill={hairDark} />
+            <rect x={headX + 2} y={headY + 18} width={3} height={1} fill={hairDark} />
+            <rect x={headX + headW - 5} y={headY + 10} width={3} height={1} fill={hairDark} />
+            <rect x={headX + headW - 5} y={headY + 14} width={3} height={1} fill={hairDark} />
+            <rect x={headX + headW - 5} y={headY + 18} width={3} height={1} fill={hairDark} />
+          </>
+        )}
+        {isAfro && (
+          /* Large rounded mass around head */
+          <>
+            <rect x={headX - 6} y={headY - 6} width={headW + 12} height={4} fill={hair} />
+            <rect x={headX - 8} y={headY - 2} width={headW + 16} height={26} fill={hair} />
+            <rect x={headX - 6} y={headY + 22} width={headW + 12} height={4} fill={hair} />
+            {/* Texture dots */}
+            <rect x={headX - 5} y={headY + 2} width={1} height={1} fill={hairDark} />
+            <rect x={headX + headW + 4} y={headY + 6} width={1} height={1} fill={hairDark} />
+            <rect x={headX - 3} y={headY + 12} width={1} height={1} fill={hairDark} />
+            <rect x={headX + headW + 2} y={headY + 14} width={1} height={1} fill={hairDark} />
           </>
         )}
 
-        {/* Head */}
-        <rect x="24" y="16" width="48" height="44" fill={skin} />
-        <rect x="24" y="16" width="48" height="44" fill="none" stroke={outline} strokeWidth="2" />
+        {/* Cape behind body */}
+        {traits.accessories.includes("Cape") && (
+          <rect x={bodyX - 4} y={bodyY} width={bodyW + 8} height={bodyH + 14} fill="#8E44AD" opacity="0.6" rx="0" />
+        )}
 
-        {/* Hair on top */}
+        {/* Backpack behind body */}
+        {traits.accessories.includes("Backpack") && (
+          <rect x={bodyX + bodyW - 2} y={bodyY + 1} width={6} height={10} fill="#E67E22" />
+        )}
+
+        {/* ═══ HEAD — rounded oval from stacked rects ═══ */}
+        {/* Outline layer (1px bigger) */}
+        <rect x={headX + 3} y={headY - 1} width={headW - 6} height={1} fill={outline} />
+        <rect x={headX + 1} y={headY} width={headW - 2} height={1} fill={outline} />
+        <rect x={headX - 1} y={headY + 1} width={headW + 2} height={20} fill={outline} />
+        <rect x={headX + 1} y={headY + 21} width={headW - 2} height={1} fill={outline} />
+        <rect x={headX + 3} y={headY + 22} width={headW - 6} height={1} fill={outline} />
+        {/* Skin fill */}
+        <rect x={headX + 4} y={headY} width={headW - 8} height={1} fill={skin} />
+        <rect x={headX + 2} y={headY + 1} width={headW - 4} height={1} fill={skin} />
+        <rect x={headX} y={headY + 2} width={headW} height={18} fill={skin} />
+        <rect x={headX + 2} y={headY + 20} width={headW - 4} height={1} fill={skin} />
+        <rect x={headX + 4} y={headY + 21} width={headW - 8} height={1} fill={skin} />
+        {/* Shadow on right side of face */}
+        <rect x={headX + headW - 3} y={headY + 4} width={3} height={14} fill={skinShade} />
+
+        {/* ═══ HAIR ON TOP ═══ */}
         {isBuzz ? (
-          <rect x="24" y="12" width="48" height="12" fill={hair} opacity="0.5" />
+          /* Very thin cap */
+          <>
+            <rect x={headX + 2} y={headY} width={headW - 4} height={3} fill={hair} opacity="0.6" />
+            <rect x={headX + 4} y={headY - 1} width={headW - 8} height={2} fill={hair} opacity="0.4" />
+          </>
         ) : isMohawk ? (
-          <rect x="40" y="0" width="16" height="20" fill={hair} />
+          /* Tall center strip */
+          <>
+            <rect x={headX + 10} y={headY - 8} width={8} height={12} fill={hair} />
+            <rect x={headX + 11} y={headY - 10} width={6} height={3} fill={hair} />
+            {/* Texture */}
+            <rect x={headX + 12} y={headY - 6} width={1} height={1} fill={hairDark} />
+          </>
         ) : isBun ? (
           <>
-            <rect x="24" y="8" width="48" height="12" fill={hair} />
-            <rect x="36" y="0" width="24" height="12" fill={hair} />
+            {/* Hair cap */}
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={6} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={3} fill={hair} />
+            {/* Bun on top */}
+            <rect x={headX + 9} y={headY - 6} width={10} height={6} fill={hair} />
+            <rect x={headX + 10} y={headY - 8} width={8} height={3} fill={hair} />
+            {/* Side fringe */}
+            <rect x={headX} y={headY + 4} width={3} height={6} fill={hair} />
+            <rect x={headX + headW - 3} y={headY + 4} width={3} height={4} fill={hair} />
           </>
         ) : isPonytail ? (
           <>
-            <rect x="24" y="8" width="48" height="12" fill={hair} />
-            <rect x="68" y="20" width="12" height="36" fill={hair} />
+            {/* Hair cap */}
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={6} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={3} fill={hair} />
+            {/* Side fringe */}
+            <rect x={headX} y={headY + 4} width={3} height={8} fill={hair} />
+            {/* Ponytail going to the right */}
+            <rect x={headX + headW - 2} y={headY + 2} width={6} height={4} fill={hair} />
+            <rect x={headX + headW + 2} y={headY + 5} width={4} height={16} fill={hair} />
+            <rect x={headX + headW + 1} y={headY + 18} width={3} height={4} fill={hair} />
           </>
-        ) : isCurly ? (
+        ) : isBob ? (
           <>
-            <rect x="20" y="8" width="56" height="16" fill={hair} />
-            <rect x="16" y="16" width="8" height="20" fill={hair} />
-            <rect x="72" y="16" width="8" height="20" fill={hair} />
-            {isLong && <rect x="16" y="36" width="8" height="16" fill={hair} />}
-            {isLong && <rect x="72" y="36" width="8" height="16" fill={hair} />}
+            {/* Hair cap */}
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={6} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={3} fill={hair} />
+            {/* Bob sides — wider at jaw level */}
+            <rect x={headX - 2} y={headY + 4} width={4} height={14} fill={hair} />
+            <rect x={headX + headW - 2} y={headY + 4} width={4} height={14} fill={hair} />
+            <rect x={headX - 3} y={headY + 12} width={3} height={6} fill={hair} />
+            <rect x={headX + headW} y={headY + 12} width={3} height={6} fill={hair} />
+          </>
+        ) : isCurly && !isAfro ? (
+          <>
+            {/* Curly cap with bumpy outline */}
+            <rect x={headX + 2} y={headY - 3} width={headW - 4} height={3} fill={hair} />
+            <rect x={headX - 1} y={headY - 1} width={headW + 2} height={6} fill={hair} />
+            {/* Bumpy curls on top */}
+            <rect x={headX + 4} y={headY - 5} width={4} height={3} fill={hair} />
+            <rect x={headX + 12} y={headY - 5} width={4} height={3} fill={hair} />
+            <rect x={headX + 20} y={headY - 5} width={4} height={3} fill={hair} />
+            {/* Side fringe — curly texture */}
+            <rect x={headX - 2} y={headY + 3} width={4} height={10} fill={hair} />
+            <rect x={headX + headW - 2} y={headY + 3} width={4} height={10} fill={hair} />
+            <rect x={headX - 3} y={headY + 5} width={2} height={3} fill={hair} />
+            <rect x={headX + headW + 1} y={headY + 7} width={2} height={3} fill={hair} />
+            {isLong && (
+              <>
+                <rect x={headX - 2} y={headY + 12} width={4} height={12} fill={hair} />
+                <rect x={headX + headW - 2} y={headY + 12} width={4} height={12} fill={hair} />
+                <rect x={headX - 3} y={headY + 16} width={2} height={3} fill={hair} />
+                <rect x={headX + headW + 1} y={headY + 18} width={2} height={3} fill={hair} />
+              </>
+            )}
+          </>
+        ) : isAfro ? (
+          /* Afro — hair cap already drawn behind, just add top detail */
+          <>
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={4} fill={hair} />
           </>
         ) : (
-          /* Default / short / bob */
-          <rect x="24" y="8" width="48" height="14" fill={hair} />
+          /* Default short straight / long straight */
+          <>
+            <rect x={headX + 2} y={headY - 2} width={headW - 4} height={6} fill={hair} />
+            <rect x={headX} y={headY + 2} width={headW} height={3} fill={hair} />
+            {/* Fringe / bangs */}
+            <rect x={headX} y={headY + 4} width={3} height={6} fill={hair} />
+            <rect x={headX + headW - 3} y={headY + 4} width={3} height={4} fill={hair} />
+            {/* Long straight extends down */}
+            {isLong && (
+              <>
+                <rect x={headX - 1} y={headY + 4} width={3} height={20} fill={hair} />
+                <rect x={headX + headW - 2} y={headY + 4} width={3} height={20} fill={hair} />
+              </>
+            )}
+          </>
         )}
 
-        {/* Eyes — pixel squares */}
-        <rect x="32" y="32" width="8" height="8" fill="white" />
-        <rect x="56" y="32" width="8" height="8" fill="white" />
-        <rect x="34" y="34" width="4" height="4" fill={eyes} />
-        <rect x="58" y="34" width="4" height="4" fill={eyes} />
-        {/* Highlight pixel */}
-        <rect x="35" y="33" width="2" height="2" fill="white" />
-        <rect x="59" y="33" width="2" height="2" fill="white" />
+        {/* ═══ EYES — small dots ═══ */}
+        <rect x={headX + 7} y={headY + 12} width={3} height={3} fill={eyes} />
+        <rect x={headX + 18} y={headY + 12} width={3} height={3} fill={eyes} />
+        {/* Eye highlights */}
+        <rect x={headX + 8} y={headY + 12} width={1} height={1} fill="white" />
+        <rect x={headX + 19} y={headY + 12} width={1} height={1} fill="white" />
 
-        {/* Mouth — small pixel line */}
-        <rect x="40" y="48" width="16" height="2" fill={outline} opacity="0.5" />
+        {/* Blush (girl) */}
+        {isGirl && (
+          <>
+            <rect x={headX + 3} y={headY + 14} width={3} height={2} fill="#F5A0A0" opacity="0.5" />
+            <rect x={headX + headW - 6} y={headY + 14} width={3} height={2} fill="#F5A0A0" opacity="0.5" />
+          </>
+        )}
 
-        {/* Nose — tiny pixel */}
-        <rect x="46" y="43" width="4" height="3" fill={outline} opacity="0.2" />
+        {/* Mouth — tiny line */}
+        <rect x={headX + 11} y={headY + 17} width={6} height={1} fill={outline} opacity="0.35" />
 
-        {/* Glasses */}
+        {/* ═══ GLASSES ═══ */}
         {traits.accessories.includes("Glasses") && (
           <>
-            <rect x="30" y="30" width="12" height="12" fill="none" stroke={outline} strokeWidth="2" />
-            <rect x="54" y="30" width="12" height="12" fill="none" stroke={outline} strokeWidth="2" />
-            <rect x="42" y="34" width="12" height="2" fill={outline} />
+            <rect x={headX + 5} y={headY + 10} width={6} height={6} fill="none" stroke={outline} strokeWidth="1" />
+            <rect x={headX + 17} y={headY + 10} width={6} height={6} fill="none" stroke={outline} strokeWidth="1" />
+            <rect x={headX + 11} y={headY + 12} width={6} height={1} fill={outline} />
           </>
         )}
 
-        {/* Hat */}
+        {/* ═══ HAT ═══ */}
         {traits.accessories.includes("Hat") && (
           <>
-            <rect x="20" y="8" width="56" height="8" fill="#D4A017" />
-            <rect x="28" y="0" width="40" height="12" fill="#D4A017" />
-            <rect x="20" y="8" width="56" height="8" fill="none" stroke={outline} strokeWidth="1" />
+            <rect x={headX - 3} y={headY - 2} width={headW + 6} height={3} fill="#D4A017" />
+            <rect x={headX + 2} y={headY - 8} width={headW - 4} height={7} fill="#D4A017" />
+            <rect x={headX - 3} y={headY - 2} width={headW + 6} height={3} fill="none" stroke={outline} strokeWidth="0.5" />
           </>
         )}
 
-        {/* Headband */}
+        {/* ═══ HEADBAND ═══ */}
         {traits.accessories.includes("Headband") && (
-          <rect x="24" y="18" width="48" height="4" fill="#EC7063" />
+          <rect x={headX} y={headY + 3} width={headW} height={2} fill="#EC7063" />
         )}
 
-        {/* Neck */}
-        <rect x="40" y="58" width="16" height="8" fill={skin} />
+        {/* ═══ NECK ═══ */}
+        <rect x={28} y={headY + 21} width={8} height={3} fill={skin} />
 
-        {/* Cape (behind body) */}
-        {traits.accessories.includes("Cape") && (
-          <rect x="16" y="64" width="64" height="48" fill="#8E44AD" opacity="0.5" />
-        )}
-
-        {/* Body / Top */}
-        {isGirl ? (
+        {/* ═══ BODY / TOP ═══ */}
+        {traits.top === "Dress" ? (
           <>
-            <rect x="28" y="64" width="40" height="12" fill={topCol} />
-            <rect x="32" y="76" width="32" height="8" fill={topCol} />
-            <rect x="28" y="84" width="40" height="4" fill={topCol} />
-          </>
-        ) : isBoy ? (
-          <>
-            <rect x="24" y="64" width="48" height="12" fill={topCol} />
-            <rect x="28" y="76" width="40" height="16" fill={topCol} />
+            {/* Dress — wider at bottom */}
+            <rect x={bodyX} y={bodyY} width={bodyW} height={bodyH - 2} fill={topCol} />
+            <rect x={bodyX - 2} y={bodyY + bodyH - 2} width={bodyW + 4} height={3} fill={topCol} />
+            <rect x={bodyX - 3} y={bodyY + bodyH + 1} width={bodyW + 6} height={3} fill={topCol} />
+            {/* Collar */}
+            <rect x={28} y={bodyY} width={8} height={1} fill="white" opacity="0.5" />
+            {/* Body outline */}
+            <rect x={bodyX - 3} y={bodyY} width={1} height={bodyH + 4} fill={outline} opacity="0.3" />
+            <rect x={bodyX + bodyW + 2} y={bodyY} width={1} height={bodyH + 4} fill={outline} opacity="0.3" />
           </>
         ) : (
-          <rect x="28" y="64" width="40" height="28" fill={topCol} />
+          <>
+            <rect x={bodyX} y={bodyY} width={bodyW} height={bodyH} fill={topCol} />
+            {/* Collar detail */}
+            <rect x={28} y={bodyY} width={8} height={1} fill="white" opacity="0.5" />
+            {/* Body shadow */}
+            <rect x={bodyX + bodyW - 3} y={bodyY + 2} width={3} height={bodyH - 3} fill="#00000012" />
+            {/* Body outline */}
+            <rect x={bodyX - 1} y={bodyY} width={1} height={bodyH} fill={outline} opacity="0.3" />
+            <rect x={bodyX + bodyW} y={bodyY} width={1} height={bodyH} fill={outline} opacity="0.3" />
+          </>
         )}
-        {/* Body outline */}
-        <rect x={isGirl ? 28 : isBoy ? 24 : 28} y="64" width={isGirl ? 40 : isBoy ? 48 : 40} height={isGirl ? 24 : isBoy ? 28 : 28} fill="none" stroke={outline} strokeWidth="1" />
 
-        {/* Scarf */}
+        {/* ═══ SCARF ═══ */}
         {traits.accessories.includes("Scarf") && (
           <>
-            <rect x="32" y="60" width="32" height="6" fill="#E74C3C" />
-            <rect x="40" y="66" width="8" height="12" fill="#E74C3C" />
+            <rect x={bodyX + 2} y={bodyY - 1} width={bodyW - 4} height={3} fill="#E74C3C" />
+            <rect x={bodyX + bodyW / 2 - 1} y={bodyY + 2} width={3} height={5} fill="#E74C3C" />
           </>
         )}
 
-        {/* Bow tie */}
+        {/* ═══ BOW TIE ═══ */}
         {traits.accessories.includes("Bow tie") && (
           <>
-            <rect x="40" y="66" width="6" height="4" fill="#E74C3C" />
-            <rect x="50" y="66" width="6" height="4" fill="#E74C3C" />
-            <rect x="46" y="66" width="4" height="4" fill="#C0392B" />
+            <rect x={29} y={bodyY + 1} width={2} height={2} fill="#E74C3C" />
+            <rect x={33} y={bodyY + 1} width={2} height={2} fill="#E74C3C" />
+            <rect x={31} y={bodyY + 1} width={2} height={2} fill="#C0392B" />
           </>
         )}
 
-        {/* Arms */}
-        {isBoy ? (
-          <>
-            <rect x="12" y="66" width="12" height="28" fill={skin} />
-            <rect x="72" y="66" width="12" height="28" fill={skin} />
-          </>
-        ) : (
-          <>
-            <rect x="16" y="68" width="12" height="24" fill={skin} />
-            <rect x="68" y="68" width="12" height="24" fill={skin} />
-          </>
-        )}
+        {/* ═══ ARMS ═══ */}
+        <rect x={bodyX - 4} y={bodyY + 1} width={4} height={9} fill={skin} />
+        <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={9} fill={skin} />
+        {/* Sleeve hints */}
+        <rect x={bodyX - 4} y={bodyY + 1} width={4} height={3} fill={topCol} />
+        <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={3} fill={topCol} />
 
-        {/* Backpack straps */}
+        {/* ═══ BACKPACK STRAPS ═══ */}
         {traits.accessories.includes("Backpack") && (
           <>
-            <rect x="32" y="66" width="4" height="24" fill="#E67E22" />
-            <rect x="60" y="66" width="4" height="24" fill="#E67E22" />
+            <rect x={bodyX + 2} y={bodyY + 1} width={1} height={bodyH - 2} fill="#E67E22" opacity="0.7" />
+            <rect x={bodyX + bodyW - 3} y={bodyY + 1} width={1} height={bodyH - 2} fill="#E67E22" opacity="0.7" />
           </>
         )}
 
-        {/* Legs / Bottom */}
-        {isGirl && (traits.bottom === "Skirt" || traits.bottom === "Leggings" || !traits.bottom) ? (
+        {/* ═══ LEGS / BOTTOM ═══ */}
+        {traits.top === "Dress" ? (
+          /* Dress — legs peek out below */
           <>
-            {/* Skirt — blocky trapezoid via stacked rects */}
-            <rect x="24" y="88" width="48" height="4" fill={bottomCol} />
-            <rect x="20" y="92" width="56" height="4" fill={bottomCol} />
-            <rect x="16" y="96" width="64" height="4" fill={bottomCol} />
+            <rect x={bodyX + 4} y={bodyY + bodyH + 4} width={4} height={7} fill={skin} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 4} width={4} height={7} fill={skin} />
+          </>
+        ) : isGirl && traits.bottom === "Skirt" ? (
+          <>
+            {/* Mini skirt */}
+            <rect x={bodyX - 1} y={bodyY + bodyH} width={bodyW + 2} height={3} fill={bottomCol} />
+            <rect x={bodyX - 2} y={bodyY + bodyH + 3} width={bodyW + 4} height={2} fill={bottomCol} />
             {/* Legs */}
-            <rect x="32" y="100" width="12" height="16" fill={skin} />
-            <rect x="52" y="100" width="12" height="16" fill={skin} />
+            <rect x={bodyX + 4} y={bodyY + bodyH + 5} width={4} height={6} fill={skin} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 5} width={4} height={6} fill={skin} />
           </>
         ) : (
           <>
-            <rect x="32" y="88" width="12" height="28" fill={bottomCol} />
-            <rect x="52" y="88" width="12" height="28" fill={bottomCol} />
+            {/* Pants / shorts / leggings */}
+            <rect x={bodyX + 3} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
+            {traits.bottom === "Shorts" && (
+              <>
+                {/* Shorter legs, skin below */}
+                <rect x={bodyX + 3} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
+                <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
+              </>
+            )}
           </>
         )}
 
-        {/* Shoes */}
+        {/* ═══ SHOES ═══ */}
         {traits.shoes !== "Barefoot" && (
-          isGirl && (traits.bottom === "Skirt" || traits.bottom === "Leggings" || !traits.bottom) ? (
+          traits.top === "Dress" ? (
             <>
-              <rect x="28" y="116" width="16" height="6" fill={shoeCol} />
-              <rect x="52" y="116" width="16" height="6" fill={shoeCol} />
+              <rect x={bodyX + 3} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
+              <rect x={bodyX + bodyW - 9} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
+            </>
+          ) : isGirl && traits.bottom === "Skirt" ? (
+            <>
+              <rect x={bodyX + 3} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
+              <rect x={bodyX + bodyW - 9} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
             </>
           ) : (
             <>
-              <rect x="28" y="116" width="16" height="6" fill={shoeCol} />
-              <rect x="52" y="116" width="16" height="6" fill={shoeCol} />
+              <rect x={bodyX + 2} y={bodyY + bodyH + 8} width={6} height={3} fill={shoeCol} />
+              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 8} width={6} height={3} fill={shoeCol} />
+            </>
+          )
+        )}
+        {traits.shoes === "Barefoot" && (
+          traits.top === "Dress" || (isGirl && traits.bottom === "Skirt") ? (
+            <>
+              <rect x={bodyX + 4} y={bodyY + bodyH + 11} width={4} height={2} fill={skin} />
+              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 11} width={4} height={2} fill={skin} />
+            </>
+          ) : (
+            <>
+              <rect x={bodyX + 3} y={bodyY + bodyH + 8} width={5} height={2} fill={skin} />
+              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 8} width={5} height={2} fill={skin} />
             </>
           )
         )}
