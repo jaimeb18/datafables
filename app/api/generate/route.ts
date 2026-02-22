@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const facts = await getFactsForTopic(topic, ageGroup);
     console.log(`[facts] topic="${topic}" ageGroup="${ageGroup}" → ${facts.length} facts from Snowflake`);
-    const story = await generateBranchingStory(topic, ageGroup, facts, language);
+    const story = await generateBranchingStory(topic, ageGroup, facts, language, characterDescription);
 
     // Collect all pages that need images
     const allPages: StoryPage[] = [

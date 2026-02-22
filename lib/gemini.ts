@@ -137,7 +137,8 @@ export async function generateBranchingStory(
   topic: string,
   ageGroup: string,
   facts: string[],
-  language: string
+  language: string,
+  characterDescription: string = ""
 ): Promise<BranchingStoryResult> {
   const factsText =
     facts.length > 0
@@ -150,11 +151,16 @@ export async function generateBranchingStory(
     "11-13": "Use richer vocabulary with some challenging words worth learning.",
   };
 
+  const characterText = characterDescription
+    ? `\nMAIN CHARACTER:\n${characterDescription}\nGive the main character a creative, unique name that fits the story's setting and culture. Do NOT use the name "Leo". Vary the name every time — pick from a wide range of diverse names from different cultures.`
+    : `\nMAIN CHARACTER:\nCreate an original child character with a creative, unique name. Do NOT use the name "Leo". Vary the name every time — pick from a wide range of diverse names from different cultures (e.g., Amara, Kai, Priya, Tomás, Nia, Soren, Yuki, Zara, etc.).`;
+
   const prompt = `You are a master children's storyteller creating an interactive "Choose Your Own Adventure" illustrated book.
 
 Create a branching 10-page children's story in ${language} for children aged ${ageGroup} about: "${topic}"
 
 Reading level: ${ageInstructions[ageGroup] || ageInstructions["8-10"]}
+${characterText}
 
 ${factsText}
 
@@ -173,7 +179,7 @@ For each branch, provide a short choice label (8-15 words) describing the path a
 
 Rules:
 - Each page has exactly 30-50 words (brief, like a real picture book page)
-- Include at least one relatable child character
+- The main character must match the description provided above
 - End each branch on an uplifting or curious note
 - For each page, identify 0-2 vocabulary words that might be challenging for the age group
   - The word MUST appear verbatim in that page's text
