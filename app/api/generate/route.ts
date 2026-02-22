@@ -4,7 +4,7 @@ import { getFactsForTopic } from "@/lib/snowflake";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, ageGroup, language = "English" } = await req.json();
+    const { topic, ageGroup, language = "English", characterDescription = "" } = await req.json();
 
     if (!topic || !ageGroup) {
       return NextResponse.json({ error: "Missing topic or ageGroup" }, { status: 400 });
@@ -28,9 +28,12 @@ export async function POST(req: NextRequest) {
       allPages.map((p) => p.text)
     );
 
+    // Combine user's character description with AI-generated character sheet
+    const combinedCharacterSheet = [characterDescription, characterSheet].filter(Boolean).join("\n\n");
+
     // Generate all page images in parallel
     const images = await Promise.all(
-      allPages.map((page) => generateImage(topic, story.title, page.text, characterSheet))
+      allPages.map((page) => generateImage(topic, story.title, page.text, combinedCharacterSheet))
     );
 
     // Reassemble with images

@@ -182,27 +182,29 @@ Rules:
   - Provide a short example sentence using the word in ${language}
 - Write everything in ${language}
 
-Respond ONLY with valid JSON (no markdown, no extra text):
+Respond ONLY with valid JSON (no markdown, no extra text). Here is the exact schema:
 {
   "title": "Story Title Here",
-  "branchPointIndex": <0-indexed page number of the branch point>,
+  "branchPointIndex": 4,
   "commonPages": [
-    { "text": "Page text here, 30-50 words.", "vocabulary": [...] }
+    { "text": "Page text here, 30-50 words.", "vocabulary": [{ "word": "example", "partOfSpeech": "noun", "definition": "a simple definition", "example": "A sentence." }] }
   ],
-  "branchPointPage": { "text": "The page where the choice happens...", "vocabulary": [...] },
+  "branchPointPage": { "text": "The page where the choice happens...", "vocabulary": [] },
   "choiceA": {
     "label": "Short description of choice A path",
     "pages": [
-      { "text": "Branch A continuation page...", "vocabulary": [...] }
+      { "text": "Branch A continuation page...", "vocabulary": [] }
     ]
   },
   "choiceB": {
     "label": "Short description of choice B path",
     "pages": [
-      { "text": "Branch B continuation page...", "vocabulary": [...] }
+      { "text": "Branch B continuation page...", "vocabulary": [] }
     ]
   }
 }
+
+Note: branchPointIndex in the example above is just an example value. Use the actual 0-indexed value you chose.
 
 IMPORTANT: branchPointIndex is 0-indexed. If you pick page 5 (1-indexed), branchPointIndex = 4.
 commonPages should have exactly branchPointIndex pages.
@@ -214,14 +216,29 @@ Each branch (choiceA.pages and choiceB.pages) should have exactly (10 - branchPo
     config: { maxOutputTokens: 8192 },
   });
 
-  const parsed = cleanJSON(response.text ?? "") as {
-    title: string;
-    branchPointIndex: number;
-    commonPages: StoryPage[];
-    branchPointPage: StoryPage;
-    choiceA: { label: string; pages: StoryPage[] };
-    choiceB: { label: string; pages: StoryPage[] };
-  };
+  let parsed;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = attempt === 0
+      ? response
+      : await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { maxOutputTokens: 8192 } });
+    try {
+      parsed = cleanJSON(res.text ?? "") as {
+        title: string;
+        branchPointIndex: number;
+        commonPages: StoryPage[];
+        branchPointPage: StoryPage;
+        choiceA: { label: string; pages: StoryPage[] };
+        choiceB: { label: string; pages: StoryPage[] };
+      };
+      break;
+    } catch (e) {
+      if (attempt === 1) {
+        console.error("Raw LLM output (retry):", (res.text ?? "").slice(0, 500));
+        throw new Error("Failed to parse story JSON after retry. Please try again.");
+      }
+      console.error("JSON parse failed, retrying...", (e as Error).message);
+    }
+  }
 
   const bpi = parsed.branchPointIndex;
   if (bpi < 3 || bpi > 7) {

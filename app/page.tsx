@@ -100,7 +100,7 @@ export default function Home() {
   const section2Ref = useRef<HTMLElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = async (topic: string, ageGroup: string, lang: string) => {
+  const handleSubmit = async (topic: string, ageGroup: string, lang: string, characterDescription: string) => {
     setLanguage(lang);
     const language = lang;
     setState("loading");
@@ -111,7 +111,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, ageGroup, language }),
+        body: JSON.stringify({ topic, ageGroup, language, characterDescription }),
       });
 
       if (!res.ok) {
