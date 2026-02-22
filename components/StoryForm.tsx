@@ -35,12 +35,12 @@ const SKIN_TONES = [
 const HAIR_COLORS = [
   { label: "Black", color: "#1C1C1C" },
   { label: "Dark Brown", color: "#3B2314" },
-  { label: "Brown", color: "#6B4226" },
+  { label: "Brown", color: "#8B5E3C" },
   { label: "Auburn", color: "#922B21" },
   { label: "Red", color: "#C0392B" },
   { label: "Blonde", color: "#F4D03F" },
   { label: "Strawberry Blonde", color: "#E8A87C" },
-  { label: "White", color: "#E5E5E5" },
+  { label: "White", color: "#F5F5F5" },
 ];
 
 const EYE_COLORS = [
@@ -76,9 +76,25 @@ const TOP_COLORS = [
 ];
 
 const GENDERS = [
-  { label: "Boy", emoji: "👦" },
-  { label: "Girl", emoji: "👧" },
+  { label: "Boy" },
+  { label: "Girl" },
 ];
+
+// Default presets applied when selecting a gender
+const GENDER_PRESETS: Record<string, Partial<CharacterTraits>> = {
+  Boy: {
+    hairStyle: "Short straight",
+    top: "T-shirt",
+    bottom: "Jeans",
+    shoes: "Sneakers",
+  },
+  Girl: {
+    hairStyle: "Long straight",
+    top: "T-shirt",
+    bottom: "Leggings",
+    shoes: "Sneakers",
+  },
+};
 
 // Emoji lookup for display-only labels
 const EMOJI: Record<string, string> = {
@@ -214,8 +230,28 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
   const hair = getColorHex(traits.hairColor, HAIR_COLORS) ?? "#6B4226";
   const eyes = getColorHex(traits.eyeColor, EYE_COLORS) ?? "#5B3A1A";
   const topCol = getColorHex(traits.topColor, TOP_COLORS) ?? "#2E86C1";
-  const bottomCol = traits.bottom === "Skirt" ? "#8E44AD" : "#2C3E50";
-  const shoeCol = "#4A4A4A";
+  // Bottom color varies by type
+  const bottomCol = (() => {
+    switch (traits.bottom) {
+      case "Jeans": return "#3B5998";
+      case "Shorts": return "#5B7FA5";
+      case "Skirt": return "#8E44AD";
+      case "Sweatpants": return "#6C6C6C";
+      case "Leggings": return "#2C2C3E";
+      case "Overalls": return "#4A6FA5";
+      default: return "#3B5998";
+    }
+  })();
+  // Shoe color varies by type
+  const shoeCol = (() => {
+    switch (traits.shoes) {
+      case "Sneakers": return "#F0F0F0";
+      case "Boots": return "#6B4226";
+      case "Sandals": return "#C8A67A";
+      case "Rain boots": return "#F4D03F";
+      default: return "#4A4A4A";
+    }
+  })();
   const isGirl = traits.gender === "Girl";
   const outline = "#383659";
   const skinShade = "#00000018"; // subtle shadow overlay
@@ -477,20 +513,90 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
             <rect x={bodyX - 3} y={bodyY + bodyH + 1} width={bodyW + 6} height={3} fill={topCol} />
             {/* Collar */}
             <rect x={28} y={bodyY} width={8} height={1} fill="white" opacity="0.5" />
+            {/* Hem detail */}
+            <rect x={bodyX - 3} y={bodyY + bodyH + 3} width={bodyW + 6} height={1} fill="#00000015" />
             {/* Body outline */}
             <rect x={bodyX - 3} y={bodyY} width={1} height={bodyH + 4} fill={outline} opacity="0.3" />
             <rect x={bodyX + bodyW + 2} y={bodyY} width={1} height={bodyH + 4} fill={outline} opacity="0.3" />
           </>
         ) : (
           <>
+            {/* Base top shape */}
             <rect x={bodyX} y={bodyY} width={bodyW} height={bodyH} fill={topCol} />
-            {/* Collar detail */}
-            <rect x={28} y={bodyY} width={8} height={1} fill="white" opacity="0.5" />
             {/* Body shadow */}
             <rect x={bodyX + bodyW - 3} y={bodyY + 2} width={3} height={bodyH - 3} fill="#00000012" />
             {/* Body outline */}
             <rect x={bodyX - 1} y={bodyY} width={1} height={bodyH} fill={outline} opacity="0.3" />
             <rect x={bodyX + bodyW} y={bodyY} width={1} height={bodyH} fill={outline} opacity="0.3" />
+
+            {/* Top-specific details */}
+            {traits.top === "Hoodie" && (
+              <>
+                {/* Hood behind head */}
+                <rect x={headX + 2} y={headY + 18} width={headW - 4} height={6} fill={topCol} />
+                <rect x={headX + 4} y={headY + 16} width={headW - 8} height={3} fill={topCol} />
+                {/* Front pocket */}
+                <rect x={bodyX + 5} y={bodyY + 7} width={10} height={4} fill="#00000010" />
+                <rect x={bodyX + 5} y={bodyY + 7} width={10} height={1} fill="#00000018" />
+                {/* Drawstrings */}
+                <rect x={bodyX + 8} y={bodyY} width={1} height={4} fill="#00000015" />
+                <rect x={bodyX + 11} y={bodyY} width={1} height={4} fill="#00000015" />
+              </>
+            )}
+            {traits.top === "Button shirt" && (
+              <>
+                {/* Collar flaps */}
+                <rect x={26} y={bodyY} width={4} height={3} fill="white" opacity="0.4" />
+                <rect x={34} y={bodyY} width={4} height={3} fill="white" opacity="0.4" />
+                {/* Button line */}
+                <rect x={bodyX + 9} y={bodyY + 1} width={2} height={1} fill="#00000025" />
+                <rect x={bodyX + 9} y={bodyY + 4} width={2} height={1} fill="#00000025" />
+                <rect x={bodyX + 9} y={bodyY + 7} width={2} height={1} fill="#00000025" />
+                <rect x={bodyX + 9} y={bodyY + 10} width={2} height={1} fill="#00000025" />
+              </>
+            )}
+            {traits.top === "Sweater" && (
+              <>
+                {/* Collar */}
+                <rect x={27} y={bodyY} width={10} height={2} fill={topCol} />
+                <rect x={27} y={bodyY} width={10} height={1} fill="#00000015" />
+                {/* Horizontal knit texture lines */}
+                <rect x={bodyX} y={bodyY + 3} width={bodyW} height={1} fill="#00000008" />
+                <rect x={bodyX} y={bodyY + 6} width={bodyW} height={1} fill="#00000008" />
+                <rect x={bodyX} y={bodyY + 9} width={bodyW} height={1} fill="#00000008" />
+                {/* Bottom ribbing */}
+                <rect x={bodyX} y={bodyY + bodyH - 2} width={bodyW} height={2} fill="#00000012" />
+              </>
+            )}
+            {traits.top === "Tank top" && (
+              <>
+                {/* Narrower shoulders — show skin on outer edges */}
+                <rect x={bodyX} y={bodyY} width={3} height={bodyH} fill={skin} />
+                <rect x={bodyX + bodyW - 3} y={bodyY} width={3} height={bodyH} fill={skin} />
+                {/* Neckline scoop */}
+                <rect x={28} y={bodyY} width={8} height={2} fill={skin} />
+              </>
+            )}
+            {traits.top === "Jacket" && (
+              <>
+                {/* Inner shirt showing */}
+                <rect x={bodyX + 6} y={bodyY} width={8} height={bodyH} fill="#D0D0D0" />
+                {/* Jacket edges / lapels */}
+                <rect x={bodyX + 5} y={bodyY} width={1} height={bodyH} fill="#00000018" />
+                <rect x={bodyX + 14} y={bodyY} width={1} height={bodyH} fill="#00000018" />
+                {/* Collar */}
+                <rect x={26} y={bodyY} width={3} height={2} fill={topCol} />
+                <rect x={35} y={bodyY} width={3} height={2} fill={topCol} />
+                {/* Zipper line */}
+                <rect x={bodyX + 9} y={bodyY + 2} width={2} height={bodyH - 2} fill="#00000012" />
+              </>
+            )}
+            {(traits.top === "T-shirt" || !traits.top) && (
+              <>
+                {/* Simple collar */}
+                <rect x={28} y={bodyY} width={8} height={1} fill="white" opacity="0.5" />
+              </>
+            )}
           </>
         )}
 
@@ -514,9 +620,26 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
         {/* ═══ ARMS ═══ */}
         <rect x={bodyX - 4} y={bodyY + 1} width={4} height={9} fill={skin} />
         <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={9} fill={skin} />
-        {/* Sleeve hints */}
-        <rect x={bodyX - 4} y={bodyY + 1} width={4} height={3} fill={topCol} />
-        <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={3} fill={topCol} />
+        {/* Sleeves — length varies by top type */}
+        {traits.top === "Tank top" ? (
+          /* No sleeves */
+          null
+        ) : traits.top === "Hoodie" || traits.top === "Sweater" || traits.top === "Jacket" ? (
+          /* Long sleeves — cover most of arm */
+          <>
+            <rect x={bodyX - 4} y={bodyY + 1} width={4} height={7} fill={topCol} />
+            <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={7} fill={topCol} />
+            {/* Cuff detail */}
+            <rect x={bodyX - 4} y={bodyY + 7} width={4} height={1} fill="#00000015" />
+            <rect x={bodyX + bodyW} y={bodyY + 7} width={4} height={1} fill="#00000015" />
+          </>
+        ) : (
+          /* Short sleeves (T-shirt, Button shirt, default) */
+          <>
+            <rect x={bodyX - 4} y={bodyY + 1} width={4} height={3} fill={topCol} />
+            <rect x={bodyX + bodyW} y={bodyY + 1} width={4} height={3} fill={topCol} />
+          </>
+        )}
 
         {/* ═══ BACKPACK STRAPS ═══ */}
         {traits.accessories.includes("Backpack") && (
@@ -533,62 +656,148 @@ function CharacterPreview({ traits }: { traits: CharacterTraits }) {
             <rect x={bodyX + 4} y={bodyY + bodyH + 4} width={4} height={7} fill={skin} />
             <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 4} width={4} height={7} fill={skin} />
           </>
-        ) : isGirl && traits.bottom === "Skirt" ? (
+        ) : traits.bottom === "Skirt" ? (
           <>
-            {/* Mini skirt */}
+            {/* Skirt — flared */}
             <rect x={bodyX - 1} y={bodyY + bodyH} width={bodyW + 2} height={3} fill={bottomCol} />
             <rect x={bodyX - 2} y={bodyY + bodyH + 3} width={bodyW + 4} height={2} fill={bottomCol} />
+            {/* Hem */}
+            <rect x={bodyX - 2} y={bodyY + bodyH + 4} width={bodyW + 4} height={1} fill="#00000012" />
             {/* Legs */}
             <rect x={bodyX + 4} y={bodyY + bodyH + 5} width={4} height={6} fill={skin} />
             <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 5} width={4} height={6} fill={skin} />
           </>
-        ) : (
+        ) : traits.bottom === "Shorts" ? (
           <>
-            {/* Pants / shorts / leggings */}
+            {/* Short pants */}
+            <rect x={bodyX + 3} y={bodyY + bodyH} width={5} height={4} fill={bottomCol} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={5} height={4} fill={bottomCol} />
+            {/* Hem */}
+            <rect x={bodyX + 3} y={bodyY + bodyH + 3} width={5} height={1} fill="#00000015" />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 3} width={5} height={1} fill="#00000015" />
+            {/* Exposed legs */}
+            <rect x={bodyX + 3} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
+          </>
+        ) : traits.bottom === "Overalls" ? (
+          <>
+            {/* Overall pants */}
             <rect x={bodyX + 3} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
             <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
-            {traits.bottom === "Shorts" && (
-              <>
-                {/* Shorter legs, skin below */}
-                <rect x={bodyX + 3} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
-                <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 4} width={5} height={4} fill={skin} />
-              </>
-            )}
+            {/* Bib over top */}
+            <rect x={bodyX + 4} y={bodyY + 2} width={12} height={bodyH - 2} fill={bottomCol} />
+            {/* Straps */}
+            <rect x={bodyX + 5} y={bodyY} width={2} height={bodyH} fill={bottomCol} />
+            <rect x={bodyX + 13} y={bodyY} width={2} height={bodyH} fill={bottomCol} />
+            {/* Pocket on bib */}
+            <rect x={bodyX + 7} y={bodyY + 5} width={6} height={4} fill="#00000010" />
+            <rect x={bodyX + 7} y={bodyY + 5} width={6} height={1} fill="#00000018" />
+            {/* Buttons at strap tops */}
+            <rect x={bodyX + 5} y={bodyY + 1} width={2} height={1} fill="#D4A017" />
+            <rect x={bodyX + 13} y={bodyY + 1} width={2} height={1} fill="#D4A017" />
+          </>
+        ) : traits.bottom === "Sweatpants" ? (
+          <>
+            {/* Loose sweatpants */}
+            <rect x={bodyX + 2} y={bodyY + bodyH} width={6} height={8} fill={bottomCol} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={6} height={8} fill={bottomCol} />
+            {/* Elastic cuffs */}
+            <rect x={bodyX + 2} y={bodyY + bodyH + 7} width={6} height={1} fill="#00000015" />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 7} width={6} height={1} fill="#00000015" />
+            {/* Waistband */}
+            <rect x={bodyX} y={bodyY + bodyH} width={bodyW} height={1} fill="#00000015" />
+          </>
+        ) : traits.bottom === "Leggings" ? (
+          <>
+            {/* Tight leggings */}
+            <rect x={bodyX + 4} y={bodyY + bodyH} width={4} height={8} fill={bottomCol} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={4} height={8} fill={bottomCol} />
+          </>
+        ) : (
+          <>
+            {/* Jeans (default) */}
+            <rect x={bodyX + 3} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
+            <rect x={bodyX + bodyW - 8} y={bodyY + bodyH} width={5} height={8} fill={bottomCol} />
+            {/* Center seam */}
+            <rect x={bodyX + 5} y={bodyY + bodyH} width={1} height={8} fill="#00000008" />
+            <rect x={bodyX + bodyW - 6} y={bodyY + bodyH} width={1} height={8} fill="#00000008" />
           </>
         )}
 
         {/* ═══ SHOES ═══ */}
-        {traits.shoes !== "Barefoot" && (
-          traits.top === "Dress" ? (
+        {(() => {
+          // Foot Y position depends on bottom type
+          const legExposed = traits.top === "Dress" || traits.bottom === "Skirt";
+          const footY = legExposed ? bodyY + bodyH + 11 : bodyY + bodyH + 8;
+          const footLX = legExposed ? bodyX + 3 : bodyX + 2;
+          const footRX = legExposed ? bodyX + bodyW - 9 : bodyX + bodyW - 8;
+
+          if (traits.shoes === "Barefoot" || !traits.shoes) {
+            return (
+              <>
+                <rect x={footLX + 1} y={footY} width={4} height={2} fill={skin} />
+                <rect x={footRX + 1} y={footY} width={4} height={2} fill={skin} />
+              </>
+            );
+          }
+          if (traits.shoes === "Boots") {
+            // Taller boots — extend up over lower leg
+            return (
+              <>
+                <rect x={footLX} y={footY - 3} width={6} height={6} fill={shoeCol} />
+                <rect x={footRX} y={footY - 3} width={6} height={6} fill={shoeCol} />
+                {/* Boot top edge */}
+                <rect x={footLX} y={footY - 3} width={6} height={1} fill="#00000018" />
+                <rect x={footRX} y={footY - 3} width={6} height={1} fill="#00000018" />
+                {/* Sole */}
+                <rect x={footLX} y={footY + 2} width={6} height={1} fill="#2C1A0E" />
+                <rect x={footRX} y={footY + 2} width={6} height={1} fill="#2C1A0E" />
+              </>
+            );
+          }
+          if (traits.shoes === "Rain boots") {
+            // Tall bright yellow boots
+            return (
+              <>
+                <rect x={footLX} y={footY - 4} width={6} height={7} fill={shoeCol} />
+                <rect x={footRX} y={footY - 4} width={6} height={7} fill={shoeCol} />
+                {/* Boot top band */}
+                <rect x={footLX} y={footY - 4} width={6} height={1} fill="#00000015" />
+                <rect x={footRX} y={footY - 4} width={6} height={1} fill="#00000015" />
+                {/* Sole */}
+                <rect x={footLX} y={footY + 2} width={6} height={1} fill="#8B7500" />
+                <rect x={footRX} y={footY + 2} width={6} height={1} fill="#8B7500" />
+              </>
+            );
+          }
+          if (traits.shoes === "Sandals") {
+            // Minimal sandals — show skin with straps
+            return (
+              <>
+                <rect x={footLX + 1} y={footY} width={4} height={3} fill={skin} />
+                <rect x={footRX + 1} y={footY} width={4} height={3} fill={skin} />
+                {/* Straps */}
+                <rect x={footLX} y={footY} width={6} height={1} fill={shoeCol} />
+                <rect x={footRX} y={footY} width={6} height={1} fill={shoeCol} />
+                <rect x={footLX} y={footY + 2} width={6} height={1} fill={shoeCol} />
+                <rect x={footRX} y={footY + 2} width={6} height={1} fill={shoeCol} />
+              </>
+            );
+          }
+          // Sneakers (default)
+          return (
             <>
-              <rect x={bodyX + 3} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
-              <rect x={bodyX + bodyW - 9} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
+              <rect x={footLX} y={footY} width={6} height={3} fill={shoeCol} />
+              <rect x={footRX} y={footY} width={6} height={3} fill={shoeCol} />
+              {/* Accent stripe */}
+              <rect x={footLX} y={footY + 1} width={6} height={1} fill="#E74C3C" opacity="0.6" />
+              <rect x={footRX} y={footY + 1} width={6} height={1} fill="#E74C3C" opacity="0.6" />
+              {/* Sole */}
+              <rect x={footLX} y={footY + 2} width={6} height={1} fill="#CCCCCC" />
+              <rect x={footRX} y={footY + 2} width={6} height={1} fill="#CCCCCC" />
             </>
-          ) : isGirl && traits.bottom === "Skirt" ? (
-            <>
-              <rect x={bodyX + 3} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
-              <rect x={bodyX + bodyW - 9} y={bodyY + bodyH + 11} width={6} height={3} fill={shoeCol} />
-            </>
-          ) : (
-            <>
-              <rect x={bodyX + 2} y={bodyY + bodyH + 8} width={6} height={3} fill={shoeCol} />
-              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 8} width={6} height={3} fill={shoeCol} />
-            </>
-          )
-        )}
-        {traits.shoes === "Barefoot" && (
-          traits.top === "Dress" || (isGirl && traits.bottom === "Skirt") ? (
-            <>
-              <rect x={bodyX + 4} y={bodyY + bodyH + 11} width={4} height={2} fill={skin} />
-              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 11} width={4} height={2} fill={skin} />
-            </>
-          ) : (
-            <>
-              <rect x={bodyX + 3} y={bodyY + bodyH + 8} width={5} height={2} fill={skin} />
-              <rect x={bodyX + bodyW - 8} y={bodyY + bodyH + 8} width={5} height={2} fill={skin} />
-            </>
-          )
-        )}
+          );
+        })()}
       </svg>
     </div>
   );
@@ -712,7 +921,13 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
                     key={g.label}
                     type="button"
                     disabled={loading}
-                    onClick={() => updateTrait("gender", traits.gender === g.label ? null : g.label)}
+                    onClick={() => {
+                      if (traits.gender === g.label) {
+                        updateTrait("gender", null);
+                      } else {
+                        setTraits((prev) => ({ ...prev, gender: g.label, ...GENDER_PRESETS[g.label] }));
+                      }
+                    }}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition active:scale-95 disabled:opacity-60"
                     style={{
                       background: traits.gender === g.label ? "var(--pixel-card-alt)" : "var(--pixel-card)",
@@ -722,7 +937,6 @@ export default function StoryForm({ onSubmit, loading, prefillTopic = "" }: Stor
                       color: "var(--pixel-dark)",
                     }}
                   >
-                    <span className="text-lg">{g.emoji}</span>
                     <span className="font-pixel" style={{ fontSize: "0.8rem" }}>{g.label}</span>
                   </button>
                 ))}
